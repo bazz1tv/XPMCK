@@ -4419,7 +4419,7 @@ target = TARGET_UNKNOWN
 
 procedure show_help(sequence what)
 	if length(what) = 0 then
-		puts(1, "Usage: xpmc.exe [options] target input [output]\n\n")
+		puts(1, "Usage: xpmc [options] target input [output]\n\n")
 		puts(1, "Options:\n")
 		puts(1, "\t-h\tShow this information\n") -- / Information about a\n\t                specific command (e.g. -h EP)\n")
 		puts(1, "\t-v\tVerbose mode\n")
