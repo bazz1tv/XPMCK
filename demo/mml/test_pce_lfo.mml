@@ -1,0 +1,29 @@
+#TITLE PC-Engine LFO Test
+#PROGRAMMER mic
+
+@v0 = {31 : 16} ' 2
+
+@MOD0 = {120 1}
+@MOD1 = {35 2}
+
+@WT0 = { 0 : 31} ; Saw wave
+
+@WT1 = { ; Sine wave
+8 11 13 14 14 15 15 15
+15 15 15 14 14 13 11 8
+8 5 2 2 1 0 0 0
+0 0 0 1 2 2 5 8
+}
+
+AB t125
+
+A o4 l4 WT0 @v0
+A L
+A MODOF [cdef]2
+A MOD0 [cdef]2
+A MOD1 [cdef]2
+
+
+B o4 l2 WT1 v0
+B L cdcd
+

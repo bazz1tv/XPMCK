@@ -1,0 +1,53 @@
+;---------------------------------------------------------------
+#TITLE		Tetris, music C
+#GAME		Tetris
+#COMPOSER	Unknown
+#PROGRAMER	mic
+;---------------------------------------------------------------
+
+#IFDEF CPC
+ABC t150
+#ELSE
+EFG t150
+#ENDIF
+
+#IFDEF CPC
+A ( o4 k5 @1 v10 
+#ELSE
+E ( o4 k5 @1 v10 
+#ENDIF
+ L
+ a>c+f+c+<g+>c+<a>c+
+ <f+>c+<f>c+<a>c+f+c+
+ <g+>c+<a>c+<f+>c+<f>c+
+ <a>c+
+ <af+>d<bg+bg+e>c+<af+>c+<bag+f+fc+fg+>c+<ba>c+f+c+
+ <g+>c+<a>c+<f+>c+<f>c+<a>c+f+c+<g+>c+<a>c+<f+>c+<f>c+<a>c+<af+>d
+ <bg+bg+e>e<b>c+ec+<aeg+ a2... >edc+<bag+a
+ b>c+<ab>dc+der<g+rab>c+r<br>c+rf+rd+rf+g+
+ arg+rf+ed+c+d+c c+2...e4... f+16.g16f+4&f+16edec+
+ d<b> f+4... g+16.a16g+4&g+16f+ff+d+fc+g+fc+fg+b>d<f>c+<fbf
+ arbag+af+32g+16 f+2&f+4&f+16&f+32<
+)
+
+
+
+#IFDEF CPC
+B ( o3 k5 v10 @1
+#ELSE
+F ( o3 k5 v10 @1
+#ENDIF
+ L
+ f+r>f+rfr<f+rg+r>c+rf+rdrc+rf+r<g+r>c+r<f+r
+>f+r<brer>er<ardr>dr<br>c+dc+<bag+f+r>f+r
+ fr<f+rg+r>c+rf+rdrc+rf+r<g+r>c+r<f+r>f+r<br
+ er>er<g+rar>c+rc+r<arer<ar>>c+eae<b>ec+
+ e<a>e<g+>e<a>eae<b>ec+e<a>e<g+>ec+ec+<a>f+d+cd+
+<g+>d+cd+c+rg+r<g+r>c+eg+e<b>e<a+>c+<f+>c+<a+>c+<br2r4r32
+>cd+<g+>d+cd+c+r2r4r32c+r<g+rfrc+rd+rfr
+ arbr>c+r<f+2...
+)
+
+
+
+

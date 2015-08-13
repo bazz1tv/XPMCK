@@ -1,0 +1,85 @@
+;---------------------------------------------------------------
+#TITLE		Sherbet Island
+#GAME		Wario Land : Super Mario Land 3
+#COMPOSER	Kozue Ishikawa, Ryohji Yoshitomi, Cryogen
+#PROGRAMMER	mic
+;---------------------------------------------------------------
+
+#IFNDEF GEN
+#ERROR "This track is for SEGA Genesis only."
+#ENDIF
+
+@v11 = {0 8 13:3'2 | 3 5}
+@v12 = { 13:1'2 }
+@v13 = { 13 13 9 1 0 }
+@v14 = { 14'3 13'5 12:7}
+
+; Define some envelopes
+@ADSR2 = {27 20 7 5 11}
+@ADSR3 = {21 9 15 8 7} 
+@ADSR4 = {12 4 1 8 0}
+@ADSR6 = {29 2 1 18 18}
+@ADSR32 = {15 3 13 16 3} 
+
+; Global tempo
+ABCDEFGHIJ t125
+
+@EP0 = {-1 0 0}
+
+@MOD1 = {4 0 3}
+
+
+;----------
+; Bassline
+;----------
+E  k5 o3 @5 FB2 OP0 v105 ADSR6 D-1 MF2 OP3 D-1 MF1 MOD1
+H  k5 o3 @3 FB1 OP0 v105 ADSR6 D-1 MF2 OP3 D-1 MF1 MOD1
+B k5 o4 @v14
+EHB (
+  r8^32
+  L
+  [r1]7r8. 
+)
+EH  o3
+B o5
+EHB (
+  a+16.b16>crrr
+ <g16.r16d+16.r16crrrc+rdrrg+16.r16a+16.r16g+16.r16gf16.f+16grrgg+rr>c16.r16d16.r16
+  c16.r16<ba16.g+16grrgg+rrd+16.r16d16.r16c16.r16<b>c16.d16g+g<ga+16.b16>cr2..
+  [r1]4
+  [r1]2r4r16 a+16.b16>crrr<g16.r16d+16.r16crrr
+  c+rdrrg+16.r16a+16.r16g+16.r16gf16.f+16grrgg+rr>c16.r16d16.r16c16.r16<ba16.g+16grrg
+  g+rrd+16.r16d16.r16c16.r16<b>c16.d16g+g<ga+16.b16>c
+)
+
+
+;--------
+; Comp
+;--------
+F k5 @7 FB2 OP0 ADSR3 D-2  OP1 D-2 MF1  ADSR4 OP2 D-3 MF1  OP3 D-3 MF0 OP4 D-3 MF1 OP0 v100 MOD1
+G k5 @5 FB6 OP0 ADSR3 D1   OP1 D-3 MF2 ADSR4 OP2 D1 MF1   OP3 D1 MF4  OP4 ADSR32 D-1 MF2 OP0 v98
+I k5 @7 FB2 OP0 ADSR3 D-2  OP1 D-2 MF1  ADSR4 OP2 D-3 MF1  OP3 D-3 MF0 OP4 D-3 MF1 OP0 v93 MOD1
+J k5 @5 FB6 OP0 ADSR3 D1   OP1 D-3 MF2 ADSR4 OP2 D1 MF1   OP3 D1 MF3  OP4 ADSR32 D-1 MF2 OP0 v90
+A k5 @v11 EP0 K-12
+IJ r4
+AFGIJ o6 L
+AFGIJ (
+ d+c<b>c d+cfc<b>cfcf+c<b>cf+cgc<b>cgcg+c
+<b>cg+cgc<b>cgcf+c<b>cf+cfc<b>cf cd+c<b>c
+ d+cfc<b>cfcf+c<b>cf+cgc<b>cgcg+c<b>cg+
+ cgc<b>cgcf+c<b>cf+cfc<b>cf cd+c<b>cd+cf
+ c<b>cfcf+c<b>cf+cgc<b>cgcg+c<b>cg+cgc
+<b>cgcf+c<b>cf+cfc<b>cf cd+c<b>cd+cfc<b>c
+ fcf+c<b>cf+cgc<b>cgcg+c<b>cg+cgc<b>cgc
+ f+c<b>cf+cfc<b>cfc
+)
+
+
+;-----------
+; PSG Drums
+;-----------
+D ( o7 k5 @0
+ L
+ [@v12fr@v13ccr@v12f]32 ;r4
+)
+

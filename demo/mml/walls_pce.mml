@@ -1,0 +1,120 @@
+;---------------------------------------------------------------
+#TITLE		Within these castle walls
+#GAME		Simon's Quest
+#COMPOSER	Unknown
+#PROGRAMMER	mic
+#OCTAVE-REV 	0
+#EN-REV         0
+;---------------------------------------------------------------
+
+
+@v9 = {15 15 0}
+
+@XPCM2 = {"..\samples\zsam5.wav" 6992 90}
+
+@v3 = {14 14 13 12 10 7 5 3 1} * 2
+
+
+; Global tempo
+ABCDEF t150 
+
+
+@WT0 = { ; Saw wave
+0 : 31
+}
+
+@WT1 = {
+26 ' 6
+1 ' 26
+}
+
+@WT6 = {
+8 11 12 15 16 18 19 20
+21 21 28 26 25 24 23 22
+21 20 9 9 8 7 7 8
+9 10 11 12 11 10 9 8
+}
+
+@WT7 = {
+8 8 7 7 6 6 12 16
+20 25 26 26 26 25 24 23
+23 22 21 21 20 20 19 19
+19 18 16 15 14 13 12 11
+}
+
+@WT8 = {
+8 7 7 6 6 16 25 25
+16 6 5 4 3 2 0 0
+1 3 5 7 16 31 31 31
+28 26 24 7 12 15 20 12
+}
+
+
+
+$3 { %1%.%1% %2%.%2% %3%.%3% }
+$4 { %1%.%1% %2%.%2% %3%.%3% %4%.%4% }
+
+
+
+; Melody 1
+A ( WT8 v28
+ L o3 l16
+ g.g > $3(c,d+,g) > $4(c,d+,g,d+) c.c < $3(g,d+,c) < $3(d+,g+,b) > $3(d+,g+,b) >
+ d+.d+ < b.bg+.g+ > f.fc+.c+ < g+.g+ < g.g > $3(c,d+,g) > $3(c,d+,g) d+.d+c.c <
+ $3(g,d+,c) < $3(d+,g+,b) > $3(d+,g+,b) > d+.d+ < b.bg+.g+ > f.fc+.c+ < g+.g+ <
+ k5 a+>d+f+a+>d+f+a+f+d+<a+f+d+<f+b>df+b>df+d<b>g+e<b<a+>d+f+a+>d+f+a+f+d+<
+ a+f+d+df+b>df+af+d<b>g+e<b
+)
+
+
+; Melody 2
+B ( k5 WT8 v26
+ L o3
+ o3
+ r16.
+ [o3 g>cd+g>cd+gd+c<gd+c<d+g+b>d+g+b>d+<bg+>fc+<g+]2
+ r16.
+ d+f+a+>d+f+a+f+d+<a+f+d+<f+b>df+b>df+d<b>g+e<b<a+>
+ d+f+a+>d+f+a+f+d+<a+f+d+8<f+b>df+b>d>c+<af+>d+<bf+
+)
+
+
+; Bass 1
+C ( o3 WT1 v25
+ L
+ k30
+ [o3 cgg+b4...>c+4...]2
+ r4...<d+4...r4... k5 d+f+a+r4... bbb>dddeeer4... 
+ <d+4...r4...d+f+a+bbb>f+4...<f+b>f+<g+>c+g+
+)
+
+
+
+F ( o2 WT0 v29
+ L
+ k30
+ [o2 cgg+b4...>c+4...]2
+ r4...<d+4...r4... k5 d+f+a+r4... bbb>dddeeer4... 
+ <d+4...r4...d+f+a+bbb>f+4...<f+b>f+<g+>c+g+
+)
+
+
+; Kick drum
+D ( o0 k28 M2
+ L
+ r4...
+ [d16r]7 [d16r16.]2 d16r2r16
+ d16r [d16r16.]2 d16r2r16 [d16r16.]8
+ d16r2r16 d16r [d16r16.]6 d16r4.r32 [d16r16.]6
+)
+
+
+; Snare drum
+E ( o8 @v3 @1 k28 
+ L
+ r4...
+ [r16r]3 e16r [r16r]3 [e16r16.]2 e16r2r16
+ r16r [e16r16.]2 e16r2r16 [e16r16.]3 r4... [e16r16.]2
+ e16r2r16 r16r [e16r16.]3 r4... e16r4.r32 [r8r32 [e16r16.]2]2
+)
+

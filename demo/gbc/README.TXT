@@ -1,0 +1,1 @@
+Due to how the Gameboy playback code works, some of the songs may sound quite strange with some emulators/plugins. It sounds ok on a real Gameboy, and in VBA-M. Nezplug++ also seems to emulate this correctly.

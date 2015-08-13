@@ -1,0 +1,18 @@
+#TITLE POKEY clock test
+#PROGRAMMER mic
+
+AB t125 @5 l4 v10
+
+A ( L
+ MF0 o2 cdef r	; Set clock to 15 kHz and play some notes in octave 2
+ MF1 o6 cdef r	; Set clock to 64 kHz and go up to octave 6
+ rrrr r
+)
+
+B ( L
+ rrrr r
+ rrrr r
+ ; Clock channel A with the CPU clock, combine channels A and B into a single
+ ; 16-bit channel, play some notes in ovtave 7, then break the channel connection
+ MF2 M1 o7 cdef r M0
+)

@@ -1,0 +1,174 @@
+;---------------------------------------------------------------
+#TITLE		Within these castle walls
+#GAME		Simon's Quest
+#COMPOSER	Unknown
+#PROGRAMMER	mic
+#OCTAVE-REV 	0
+#EN-REV         0
+#GB-NOISE	1
+;---------------------------------------------------------------
+
+#IFNDEF GEN & KSS & GBC
+#ERROR "This track is for -gbc, -gen or -kss"
+#ENDIF
+
+@v9 = {15 15 0}
+
+
+#IFDEF GEN
+
+@v3 = {14 14 13 12 10 7 5 3 1}
+
+; Define some envelopes
+@ADSR0 = {28 10 6 7 4}
+@ADSR1 = {20 9 4 9 17}
+@ADSR2 = {27 20 7 14 11}
+@ADSR3 = {25 3 19 1 25} 
+@ADSR4 = {16 2 1 8 18}
+@ADSR5 = {28 18 7 4 8}
+
+; Global tempo
+ABCDEFGHIJ t150 EPOF MPOF
+
+; Set up detuning and multipliers
+EFGHJ OP1 D-3 MF2  OP2 D0 MF7  OP3 D1 MF4  OP4 D2 MF1
+I     OP1 D1                  OP3 D-1 MF2
+
+#ELSIFDEF KSS
+
+@v3 = {12 11 10 8 7 5 3 1}
+
+@WT0 = { ; Saw wave
+-128 -120 -112 -104 -96 -88 -80 -72
+-64 -56 -48 -40 -32 -24 -16 -8
+0 8 16 24 32 40 48 56
+64 72 80 88 96 104 112 120
+}
+
+@WT1 = { 
+-96 -48 32 64 96 96 112 112
+112 112 96 96 64 32 -48 -96
+-96 -80 -48 -16 16 48 80 112
+112 80 48 16 -16 -48 -80 -96
+}
+
+@WT2 = { ; Used as a kick drum
+-127 112 -128 0 127 0 -120 111
+-112 0 120 0 -96 0 111 0
+-88 0 120 0 -80 0 80 0
+-64 0 64 0 -48 0 79 0
+}
+
+FGHIJKL t150
+
+#ELSE
+
+@v3 = {12 11 10 8 7 5 3 1}
+@v4 = {14 13 4 0}
+@EN0 = {0 | 0 -1}
+
+@WT0 = { 0:15:0.5 15 } ; Saw wave
+}
+
+ABCD t150
+
+#ENDIF
+
+$3 { %1%.%1% %2%.%2% %3%.%3% }
+$4 { %1%.%1% %2%.%2% %3%.%3% %4%.%4% }
+
+
+; Melody 1
+#IFDEF GEN
+E ( o6 @4 FB6 OP0 v102 ADSR3 D-2 OP2 D0 MF2
+#ELSIFDEF KSS
+K ( WT1 v14
+#ELSE
+A ( @2 v12 @ve-2
+#ENDIF
+ L o4 l16
+ g.g > $3(c,d+,g) > $4(c,d+,g,d+) c.c < $3(g,d+,c) < $3(d+,g+,b) > $3(d+,g+,b) >
+ d+.d+ < b.bg+.g+ > f.fc+.c+ < g+.g+ < g.g > $3(c,d+,g) > $3(c,d+,g) d+.d+c.c <
+ $3(g,d+,c) < $3(d+,g+,b) > $3(d+,g+,b) > d+.d+ < b.bg+.g+ > f.fc+.c+ < g+.g+ <
+ k5 a+>d+f+a+>d+f+a+f+d+<a+f+d+<f+b>df+b>df+d<b>g+e<b<a+>d+f+a+>d+f+a+f+d+<
+ a+f+d+df+b>df+af+d<b>g+e<b
+)
+
+
+; Melody 2
+#IFDEF GEN
+F ( k5 o6 @4 FB7 OP0 v99 ADSR3 D-2 OP2 D0 MF2
+#ELSIFDEF KSS
+L ( k5 WT1 v12
+#ELSE
+B ( k5 @2 v10 @ve-2
+#ENDIF
+ L o4
+ o4
+ r16.
+ [o4 g>cd+g>cd+gd+c<gd+c<d+g+b>d+g+b>d+<bg+>fc+<g+]2
+ r16.
+ d+f+a+>d+f+a+f+d+<a+f+d+<f+b>df+b>df+d<b>g+e<b<a+>
+ d+f+a+>d+f+a+f+d+<a+f+d+8<f+b>df+b>d>c+<af+>d+<bf+
+)
+
+
+; Bass 1
+#IFDEF GEN
+G ( o3 @2 FB1 OP0 v101 ADSR4 D-1 MF2 OP3 D-1 MF1
+#ELSIFDEF KSS
+H ( o3 WT0 v13
+#ELSE
+C ( o3 WT0 v3
+#ENDIF
+ L
+ k30
+ [o3 cgg+b4...>c+4...]2
+ r4...<d+4...r4... k5 d+f+a+r4... bbb>dddeeer4... 
+ <d+4...r4...d+f+a+bbb>f+4...<f+b>f+<g+>c+g+
+)
+
+#IFNDEF GBC
+; Bass 2
+#IFDEF GEN
+J ( o2 @3 FB2 OP0 v99 ADSR4 D-2 MF2 OP3 D1 MF1
+#ELSE
+I ( o2 WT0 v12
+#ENDIF
+ L
+ k30
+ [o2 cgg+b4...>c+4...]2
+ r4...<d+4...r4... k5 d+f+a+r4... bbb>dddeeer4... 
+ <d+4...r4...d+f+a+bbb>f+4...<f+b>f+<g+>c+g+
+)
+
+
+; Kick drum
+#IFDEF GEN
+I ( o3 k28 @4 FB4 OP0 v121 ADSR2 
+#ELSE
+J ( o1 k28 WT2 @v9
+#ENDIF
+ L
+ r4...
+ [d16r]7 [d16r16.]2 d16r2r16
+ d16r [d16r16.]2 d16r2r16 [d16r16.]8
+ d16r2r16 d16r [d16r16.]6 d16r4.r32 [d16r16.]6
+)
+#ENDIF
+
+; Snare drum
+#IFDEF GEN
+D ( o7 @v3 @0 k28 
+#ELSIFDEF KSS
+G ( o4 @v3 @2 k28
+#ELSE
+D ( o4 @v3 @0 k28 
+#ENDIF
+ L
+ r4...
+ [r16r]3 e16r [r16r]3 [e16r16.]2 e16r2r16
+ r16r [e16r16.]2 e16r2r16 [e16r16.]3 r4... [e16r16.]2
+ e16r2r16 r16r [e16r16.]3 r4... e16r4.r32 [r8r32 [e16r16.]2]2
+)
+

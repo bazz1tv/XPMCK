@@ -1,0 +1,24 @@
+#TITLE Loop Test
+#PROGRAMMER mic
+
+#INCLUDE "common.mml"
+
+AB t125
+
+#IFDEF AT8
+AB @5 
+A v13
+B v11
+#ELSIFDEF PCE
+AB WT0
+A v28
+B v26
+#ENDIF
+
+A o4 l4
+A L
+A [cdef cdef | fedc]3
+
+B o3 l1
+B L
+B cdef 

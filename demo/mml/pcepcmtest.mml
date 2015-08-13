@@ -1,0 +1,55 @@
+#PROGRAMMER	mic
+#IFNDEF PCE
+#ERROR "This track is for PCE/TGX only."
+#ENDIF
+
+; Load three samples. 
+@XPCM0 = {"..\samples\zsam5.wav" 6992}
+@XPCM2 = {"..\samples\zsam4.wav" 6992}
+@XPCM4 = {"..\samples\zsam8.wav" 6992}
+
+
+@v0 = {14 13 12 11 10 7 1 0} * 2
+@v1 = { 30 31 31 31 31 30 28 26 25 24 23 } ' 3
+@v3 = { 30 31 31 31 30 28 26 25 24 23 22 21 20 19} ' 3 - 2
+
+@WT0 = { ; Saw wave
+0 : 31
+}
+
+@WT5 = {  ; 12.5% square
+31 ' 4
+0 ' 28
+}
+
+@EN0 = {0 0 12 0 }
+
+;-----------
+; First song
+;-----------
+
+ABCDEF t120
+
+A WT0 @v1 EN0 o1 
+B WT5 @v3 EN0 o2
+AB (
+ L
+ l32  
+ [f+rf+rf+rf+rf+rf+rf+r r16 f+rf+r r16 f+rf+rf+rf+r r16]4
+ [q8drdrdrdrdrdrdr r16 drdr r16 drdrdrdr r16]2
+)
+
+
+; PSG drums
+E o7 l32 @1
+E L
+E @v0 r8crrrr8crcrc+rrrr4crrr
+
+
+; PCM drums
+D o0 M2		; Set mode 2 (PCM mode)  
+D L
+D l16 cr8.dr8e32r32r8crdr8.
+
+
+

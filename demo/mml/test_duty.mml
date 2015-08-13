@@ -1,0 +1,7 @@
+#TITLE Gameboy duty cycle test
+#PROGRAMMER mic
+#GB-VOLUME-CONTROL 1
+
+A L
+A t150 @00 o3 v15 l8 q8 @00cdef @02cdef 
+A @q1 t150 @00 o3 v15 l8 @00cdef @02cdef 

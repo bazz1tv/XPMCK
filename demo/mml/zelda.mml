@@ -1,0 +1,225 @@
+#TITLE		Opening Title
+#GAME		Legend of Zelda
+#COMPOSER	Koji Kondo, Maktone, Natan1
+#PROGRAMMER	mic
+#OCTAVE-REV 	0
+
+; Define some envelopes
+@ADSR0 = {28 3 4 30 0}
+@ADSR1 = {28 6 13 25 2}
+@ADSR2 = {27 20 7 4 11}
+@ADSR3 = {30 9 21 1 26} 
+@ADSR4 = {12 4 1 8 0}
+@ADSR5 = {28 18 7 4 8}
+@ADSR6 = {31 5 7 22 10}
+@ADSR7 = {28 6 13 25 26}
+
+@v1 = {7 6 5 4 4 3 3 3 2 2 2 1 0} 
+@v2 = {10 9 7 5 3 1 0} ' 2
+@v3 = {5 5 5 4 4 4 4 3 3 3 3 2 2 2 2 1 1 1 1 1 1 1 0}
+@v4 = {3 3 2 2 1 0}
+
+@EN38 = { 0 3 5 | -8 3 5}
+@EN47 = { 0 4 3 | -7 4 3}
+
+
+; Global tempo
+ABCDEFGHI t95 EPOF MPOF
+
+; Drums
+@XPCM0 = {"..\samples\zsam4.wav" 8000 28}  ;c
+@XPCM2 = {"..\samples\zsam5.wav" 8000 28}  ;d
+@XPCM4 = {"..\samples\zsam8.wav" 8000 28}  ;e
+@XPCM5 = {"..\samples\zsam4.wav" 8000 15}  ;f
+@XPCM7 = {"..\samples\zsam5.wav" 8000 17}  ;g
+@XPCM9 = {"..\samples\zsam8.wav" 8000 20}  ;a
+@XPCM11 = {"..\samples\zsam8.wav" 8000 12}  ;b
+
+@MOD0 = {5 3 3}
+
+@CS0 = {-15}
+@CS1 = {15}
+
+
+; Set up detuning and multipliers
+EFGH OP1 D0 MF2  OP2 D3 MF3  OP3 D0 MF2  OP4 D1 MF2
+I    OP1 D1                  OP3 D-1 MF2
+
+
+
+;------
+; Mel1
+;------
+G l16 o5 @6 q7 FB0 OP0 ADSR7 D0 OP3 ADSR4 D0 MF1 OP4 ADSR6 D-1 MF3 OP0 v101 MOD0 CS1
+B l16 o4 q7 @v3 CS0
+GB (
+ g2ggggg8fg4&gggggg8fg4&g
+ ggggg. L d32d t85 d.d32d t78 d.d32dd.d. t95    
+ o5
+ g8.d4&dgg32ab32>cd2
+ ddd+f g4.. gggfd+f8d+d4.d8.
+ ;; --3--
+ c.c32dd+4.d.c.<a+.a+32>cd2&d<a.a32b>c+4.
+ ;; --4--
+ e8.d.
+ ;; --8--
+ <[d32dd.]3 d.g8.d4&dgg32ab32>cd2
+ ;; --5--
+ ddd+fg2&gg8.g8.f+4.d8.
+ ;; --6--
+ d+2&d+ g8.f+8.d4.d8.d+2&d+
+ ;; --7--
+ g8.f+8.d4.<b8.>c2&cd+8.d8.<a+4.
+ ;; --4--
+ g8.a.a32b>c+4.e8.d. <
+)
+
+
+
+;------
+; Mel2
+;------
+H  l16 o4 @6 q7 FB2 OP0 v106 ADSR1 D0 MF2 MOD0 OP2 D-2 MF5 CS0
+I  l16 o4 @4 q-7 FB1 OP0 v95 SSG2 ADSR4 D0 MF1 MOD0 OP2 D-2 MF4 CS0 
+HI (
+ b2bbbba8aa4&aaaaaa+8a+a+4&a+
+ a+a+a+a+a+. L f+32f+ t85 f+.f+32f+ t78 f+.f+32f+f+.f+. t95 
+ 
+ b8.bbab8bb32>cd32d+f8gg32a
+ b32>cd8d<fgaa+8d+d+32fg32aa+a+8a+aga+8fffd+f8ffd+f
+ ;; --3--
+ d+.d+32dd+8d+32f32g8.f.d+.d.d32cd.dd+32f8.d+.d.c+8.c+8de8
+ ;; --4--
+ e32f+32g.a.f+.
+ ;; --8--
+ <[f+32f+f+.]3 f+.b8.bbab8bb32>cd32d+f8gg32a
+ ;; --5--
+ b32>cd8d<fgaa+8d+d+32fg32aa+8.>c+8.c8.<a4.f+8.
+ ;; --6--
+ g+2&g+a+8.a8.f+4.f+8.g+2&g+
+ ;; --7--
+ a+8.a8.f+4.f+8.d+2&d+g+8.g8.d4.
+ ;; --4--
+ <a8.>c+8.c+8de8e32f+32g.a.f+. <
+)
+
+
+
+
+;------
+; Bass
+;------
+E l16 o2 @2 q5 FB2 OP0 RS2 v106 ADSR0 D1 OP2 D-1 MF10
+C v0 o4 l16 CS1
+CE (
+ ;o2
+ [g8.ggg]2 [f8.fff]2 [d+8.d+d+d+]2 d+8. L  t85 d8. t78 d8.e.f+. t95 
+ 
+ g8.ggfg8.g8.f8.f
+ fd+f8.f8.d+8.d+d+c+d+8.d+8.a+8.a+a+g+a+8.a+8.
+ ;; --3--
+ g+8.g+g+g g+8.g+g+g+ g8.ggf g8.ggg a8.aag a8.
+ ;; --4--
+ aaad8.
+ ;; --8--
+ d8.d8.e.f+.g8.ggfg8.g8.f8.f
+ ;; --5--
+ fd+f8.f8.d+8.d+d+c+d+8.d+8.d8.ddcd8.d8.
+ ;; --6--
+ c+ga+>c+ga+>c+4.d8.<<dddd4.c+ga+>c+ga+>c+4.
+ ;; --7--
+ d8.<<dddd4.g+8.g+g+gg+8.g+g+g+g8.g
+ ;; --4--
+ gfg8.ggga8.aaaa8.aaa d8.
+)
+
+D ( @1  o3 l16 @v2
+ o3
+ [g8.ggg]2 [g8.ggg]2 [g8.ggg]2 g8. L  t85 g8. t78 g8.g.g. t95 
+
+ b8.gggg8.g8.g8.g
+ ggg8.g8.g8.gggg8.g8.g8.gggg8.g8.
+ ;; --3--
+ g8.ggg g8.ggg g8.ggg g8.ggg g8.ggg g8.
+ ;; --4--
+ bbbb8.
+ ;; --8--
+ g8.g8.g.g.g8.gggg8.g8.g8.g
+ ;; --5--
+ ggg8.g8.g8.gggg8.g8.g8.gggg8.g8.
+ ;; --6--
+ ggg>ggg>g4.g8.<<gggg4.ggg>ggg>g4.
+ ;; --7--
+ g8.<<gggg4.g8.gggg8.gggg8.g
+ ;; --4--
+ ggg8.gggg8.gggg8.ggg g8. 
+)
+
+
+;------
+; Chirp
+;------
+F OP0 ADSR6 v101 @6 FB1 MOD0 CS1 o4 q6
+A @v1 CS0 o5 q6
+FA (
+ l32 
+ > EN47[rrrgggr8rr]2 [rrrfffr8rr]2
+ EN38[rrrgggr8rr]2 
+ ENOF rr L r8 t85 r8. t78 r4. t95 < 
+ 
+    r g b >d g b r b g rrr <
+    r g b >d g b r b g d <b g
+    r f a >d f a r a f rrr <
+    r f a >d f a r a f d+ <a f
+    r g a+ >d+ g a+ r a+ g rrr <
+    r g a+ >d+ g a+ r a+ g d+ < a+ g
+    r f a+ >d f a+ r a+ f rrr <
+    r f a+ >d f a+ r a+ f d < a+ f
+    ;;3
+    r g+ >c d+ g+ >c r c <g+ rrr <
+    r g+ >c d+ g+ >c r c <g+ d+ c <g+
+    r g >d a+ g >d r d <a+ rrr <
+    r g a+ >d g a+ r a+ g d <a+ g
+    r a >c+ e a >c+ r c+ <a rrr <
+    rrrr
+    r4rr
+    ;; 8
+    r2r8rr 
+    r g b >d g b r b g rrr <
+    r g b >d g b r b g d <b g
+    r f a >d f a r a f rrr <
+    ;; 5
+    r f a >d f a r a f d <a f
+    r g a+ >d+ g a+ r a+ g rrr <
+    r g a+ >d+ g a+ r a+ g d+ <a+ g
+    r g a+ r r2 r8
+    ;; 6
+    r1r1
+    ;; 7
+    r1r1
+    ;; 4
+    r1r4rr
+)
+
+
+;------
+; Drums
+;------
+J ( o0 M2 l16 t95 
+ [d8.cee]6 d. L f32c t85 f.c. t78 d.c32cc.d. t95  
+ [d8.c8gd8.c8.]4
+ [d8.c8gd8.c8.]2 d8.c8gd8.
+ ;; --4--
+ c8.d8.
+ ;; --8--
+ c.c32cd.d32cc32b32a32c32e32e32 d8.c8gd8.c8. d8.c8
+ ;; --5--
+ gd8.c8. d8.c8gd8.c8. d8gcfgd8.c8.
+ ;; --6--
+ d8ee8ee8gcfgd8.c8.d8.c8.d8ee8ee8
+ ;; --7--
+ gcfgd8.c8.d8.c8gd8ec8ed8ec8gd8ec8
+ ;; --4--
+ ed8ec8gd8ec8ed8ec8.d.
+ 
+)

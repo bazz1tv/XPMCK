@@ -1,0 +1,55 @@
+#TITLE		 Orion riff (YM2612 version)
+#COMPOSER	 James Hetfield, Cliff Burton, Lars Ulrich
+#PROGRAMMER	 mic
+
+#IFNDEF GEN
+#ERROR "This track is for SEGA Genesis only."
+#ENDIF
+
+@v04 = { 10 8 5 0}
+@v10 = {12 10 10 9 9 8 7 4 4 4 3 3 3 2 2 2 1 1 0}
+
+ABCDEFGHIJ t125
+
+; Set up detuning and multipliers
+EFGHJ OP1 D-3 MF3 OP2 D0 MF13 OP3 D3 MF3 OP4 D1 MF1
+I OP1 D1 OP3 D-1 MF2
+
+; Define some envelopes
+@ADSR1 = {20 9 4 6 7}
+@ADSR2 = {27 20 7 11 11}
+@ADSR3 = {18 9 4 5 4}
+@ADSR4 = {21 8 5 5 3}
+
+@FBM0 = {| 0 0 7 7}
+
+H OP0 D3 MF9 l16 o4 v94 ADSR4
+E l16 o4 OP0 v98 ADSR1
+EH L
+EH l16 @0 FBM0 
+EH [ereeareeeebreeee >c<reeeeereefrffer eree>cr<eeeebreeee areeeeereefrffer]4
+
+
+F l16 o4 @0 FB3 OP0 v95 ADSR3 
+G l16 o3 q7 @2 FB2 OP0 v104 ADSR1
+FG L
+FG [eeeea8 eeeeb8 eeee>c8 <eeeee8 eef8 ffe8 
+FG  eeee>c8 <eeeeb8 eeeea8 eeeee8 eef8 ffe8]4 
+
+
+; Drums
+D ( o6 l16 @0 @v04
+ L
+ [@v10rrrre8 rrrre8 rrrre8 rrrrrrrrrrrrrr]4
+ [@v10err@v04fffff ff@v10f@v04ff@v10e@v04ff @v10e@v04fffffff ff@v10e@v04ff@v10f@v04ff
+  @v10e@v04fffffff ff@v10f@v04ff@v10e@v04ff @v10e@v04fffffff ff@v10e@v04ff@v10e@v04ff]2 )
+
+
+
+; Bass drum
+I ( o3 l16 @4 FB4 OP0 v118 ADSR2
+ L
+ [rrrre8 rrrre8 rrrre8 rrrrrrrrrrrrrr]4 
+ [e8rccrcr cce8re8r e8rccrcr ccdrrdrr
+  d8.cc8c8 cce8.e8. e8.cc8c8 ccd8.d8.]2 )
+

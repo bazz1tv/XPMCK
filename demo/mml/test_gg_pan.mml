@@ -1,0 +1,19 @@
+#TITLE GameGear Panning Test
+#PROGRAMMER mic
+
+#INCLUDE "common.mml"
+
+
+@CS0 = {-16 }	; Pan left
+@CS1 = {16}	; Pan right
+
+AB t125 l4 v12
+
+A CS0 o3 
+B CS1 o5 r
+
+AB (
+ L
+ cdef
+)
+         

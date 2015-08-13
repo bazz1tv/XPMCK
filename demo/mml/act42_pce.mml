@@ -1,0 +1,166 @@
+;---------------------------------------------------------------
+#TITLE		Basilisk mine field
+#GAME		Ninja Gaiden 
+#COMPOSER	Unknown
+#PROGRAMMER	mic
+#OCTAVE-REV 	0
+;---------------------------------------------------------------
+
+
+@v3 = {14 12 7 3 1} * 2 - 1
+
+; Snare drum sample
+@XPCM2 = {"..\samples\zsam4.wav" 6992 90}
+
+; Global tempo
+ABCDEF t150 EPOF MPOF
+
+
+@WT0 = { ; Saw wave
+0 : 31
+}
+
+@WT2 = { ; Momotaro bass
+2 5 10 12 14 14 15 15
+15 15 14 14 12 10 5 2
+2 3 5 7 9 11 13 15
+15 13 11 9 7 5 3 2
+} * 2
+
+@WT3 = {  ; 75% square
+27 ' 24
+0 ' 8
+}
+
+@WT5 = {  ; 12.5% square
+26 ' 4
+0 ' 28
+}
+
+@WT6 = {
+8 11 12 15 16 18 19 20
+21 21 28 26 25 24 23 22
+21 20 9 9 8 7 7 8
+9 10 11 12 11 10 9 8
+}
+
+@WT7 = {
+8 8 7 7 6 6 12 16
+20 25 26 26 26 25 24 23
+23 22 21 21 20 20 19 19
+19 18 16 15 14 13 12 11
+}
+
+@WT8 = {
+8 7 7 6 6 16 25 25
+16 6 5 4 3 2 0 0
+1 3 5 7 16 31 31 31
+28 26 24 7 12 15 20 12
+}
+
+@CS0 = { 0xEC }
+@CS1 = { 0xCE }
+
+
+;------
+; Bass
+;------
+@v9 = {29 31 31 31 31 31 31 28 28 28 28 28 28 26 }
+@v10 = {30 : 18} ' 3
+A ( l8 o1 WT8 @v9 
+ [f+>f+<]4
+ L
+ l8 o1
+ [f+>f+<]4 [d>d<]4 [e>e<]4
+ [c+>c+<]4 [f+>f+<]4 [d>d<]4 [e>e<]4
+ [c+>c+<]4 f+>f+< e>e< d>d< [c+>c+<]4 e>e< [f+>f+<]4
+ [[d>d<]4 [e>e<]4 [f+>f+<]8]3
+ [d>d<]4 [e>e<]4 [f+>f+<]4
+)
+
+
+;----------
+; Melody 1
+;----------
+B ( l16 @v10 WT3 CS0
+ r1
+ L 
+ o4
+[<f+8>f+c+rc+f+8 <f+>f+c+8f+8c+8 <d8>f+drdf+8 <d>f+d8f+8d8
+<e8>f+eref+8 <e>f+e8f+8e8 <c+8>f+c+f+rf+f+ f+8f+8f8r8]2
+<c+8>f+c+<e8>e<b d8>d<ac+8c+g+ [c+8]4 c+8r4. f+8>f+c+rc+f+8
+<f+>f+c+8f+8c+8
+[<d8>f+drdf+8 <d>f+d8f+8d8 <e8>f+eref+8 <e>f+e8f+8e8
+<c+8>f+c+f+rf+f+ a8g+8f+8r8 | <f+8>f+c+rc+f+8 <f+>f+c+8f+8c+8]4
+
+)
+
+;----------
+; Melody 2
+;----------
+C ( l8 @v10 WT5 CS1
+ r1
+ L
+ o4 l8
+[f+af+be16f+e16f+>c+
+<[f+16]4f+g+ag+f+4
+ g+f+bg+f+16g+f+16g+>c+
+<[g+16]4g+abag+4]2
+ f+4e4d4c+4
+ r[c+]5f+g+
+ ag+af+4>c+<ba
+ babf+4ag+f+
+ ef+g+>e4dc+<b
+>c+4.r4<c+f+g+
+ ag+af+4>c+<ba
+ babf+4ag+f+
+ ef+g+>e4dc+<b
+>c+4.r4<l16c+ef+g+ab
+ a8g+a8f+a8g+a8f+bag+a
+ [a8g+a8f+a8g+a8f+bag+f+
+ b8ab8g+b8ab8g+>c+<bag+
+ f+ec+df+c+ef+ag+f+e>c+8<b8
+ | a8g+a8f+a8g+a8f+bag+a]2
+)
+
+
+;-----------
+; Kick drum
+;-----------
+@v11 = {29 25 20 20 15 12 10 8} 
+@EN0 = { -2 }
+F ( o8 l16 @1 @v11 EN0 CS0
+ cr2...
+ L
+ [cr4..]6
+ cr2... [cr4..]6
+ cr8.r1.. 
+ [cr2... [cr4..]6]4
+ cr2...
+)
+
+;-------------------
+; Snare drum (XPCM)
+;-------------------
+D ( o0 M2 l16 CS1
+ r4 [dr8.]2 dddd
+ L
+ [r4 [dr4..]3 drdr r4 [dr4..]2 [dr8.]2 dddd]2
+ [dr8.]4 
+ r4 [dr8.]2 dddd r4 [dr4..]3 drdrr4 [dr4..]2 [dr8.]2 dddd
+ [r4 [dr4..]3 drdr r4 [dr4..]2 [dr8.]2 dddd]3
+)
+
+$1 { [e]9r [[e]7r]3 [e]5r }
+
+;----------
+; PSG drum
+;----------
+E ( o9 @1 l16
+ @v3
+ er [e]7r [e]6
+ L
+ er [[e]7r]3 $1() [[e]7r]3 $1()
+ [[e]3r]3 eer1 er [[e]7r]3 $1() [[e]7r]3 $1()
+ [[e]7r]3 $1() [[e]7r]3 [e]9r [[e]7r]3 [e]4
+)

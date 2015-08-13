@@ -1,0 +1,47 @@
+;---------------------------------------------------------------
+#TITLE		Boss theme
+#GAME		Akumajo Dracula
+#COMPOSER	Unknown
+#PROGRAMER	mic
+#OCTAVE-REV 0
+#INCLUDE	"common.mml"
+;---------------------------------------------------------------
+
+@v0 = {9 8 7 6 5 3} 
+#IFDEF GBC
+$v0 { v9 @ve-6 }
+#ELSE
+$v0 { @v0 }
+#ENDIF
+@v1 = {3'3 2'4 1 0}
+
+
+; Global tempo
+ABCD t112
+
+A ( o4 l16 v12 @3
+ L
+ cgd+gcgd+gdgfgdgfg
+ cgd+gcgd+gcgd+gcgd+g
+ cg+fg+cg+fg+cgfgcgfg
+ dgfgdgfgcgd+gcgd+g
+)
+
+B ( o3 l2 v10 @2
+ L
+ c<b>cd+
+ fg<b>c
+)
+
+C o3 l4 WT1 @v1 ;v11
+C L
+C gggg
+
+
+D o7 l4 @0 $v0()
+D L
+D cccc
+
+
+
+

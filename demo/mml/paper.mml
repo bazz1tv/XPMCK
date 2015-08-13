@@ -1,0 +1,71 @@
+;---------------------------------------------------------------
+#TITLE		Paperboy
+#COMPOSER	Mark Cooksey
+#PROGRAMER	mic
+#OCTAVE-REV 	0
+;---------------------------------------------------------------
+
+#IFNDEF C64
+#ERROR "This track is for Commodore 64 only"
+#ENDIF
+
+@0 = {0 0 0 0 0 1}
+@1 = {2 1}
+
+ABC t144 v15
+
+@ADSR0 = {14 10 10 14}
+@ADSR1 = {14 9 13 6}
+@ADSR2 = {15 12 13 13}
+@FT0 = {3 1500 4}
+@pw0 = {2 2 2 2 2 5 5 5 5 5 15}
+
+
+A ( o3 l8 @2 ADSR0 @pw0
+ L
+ fa>cfc<afaeg>cec<geg
+ dfa>d<afdfceg>c<gece
+ [<a+>dfa+fd<a+>d<a>cfafcac]2
+ fa>cfc<afaeg>cec<geg
+ dfa>d<afdfceg>c<gece
+ <a+>dfa+fd<a+>d<a>cfafcac
+ <ga+>dgd<a+ga+>ceg>c<gece
+ <a>cfa<a+>dfa+<a>cfafc<a>c )
+
+
+
+B ( o4 l4 @1 pw0 ADSR1 
+ L
+ a2gf>c2<g2
+ >d2efe16d16c2c4c8 
+ d2c<a+>c16<a+16a2..
+ a2gfg1
+ a2gf>c2<g2
+ >d2efe16d16c2..
+ d2c<a+>c16<a+16a2..
+ a+2.>c8<a+8agfe
+ f1&f1 )
+
+
+
+C ( l8 ADSR2 @@0 FT0 @pw0 
+ L
+ o4
+ [ffrc]2
+ [eere]2
+ ddraddrdccrgccrf
+ <[a+a+rf]2
+ [aara]2
+ [>d+d+r<a+]2
+ [>ccr<g]2
+ >[ffrc]2
+ [eere]2
+ ddraddrdccrgccrf
+ <[a+a+rf]2
+ [aara]2
+ [>d+d+r<a+]2
+ [>ccr<g]2
+ [ffrf]2
+ [ffrc]2 )
+
+

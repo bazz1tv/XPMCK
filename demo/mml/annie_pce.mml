@@ -1,0 +1,159 @@
+#TITLE		Annie's song
+#COMPOSER	Maktone
+#PROGRAMER	mic
+#OCTAVE-REV 	0
+
+;@DPCM0 = { "kick.bin",15 }
+;@DPCM2 = { "snare.bin",15 }
+@XPCM4 = { "..\samples\zsam4.wav" 6992 75}
+
+@5 = {2 2 3 3 3 3 3 3 3 3 0 0 0 0 0 0 0 0 2} ;{2 0 0 0 0 0 0 0 0 1} ;{1 1 0 } ;3 3 1 1 3 3 1 1 3 1}
+@6 = {| 1 2 2 2}
+@7 = {| 0 3}
+@8 = {1 3}
+
+@EN27 = { 0 2 5 | -7 2 5}
+@EN37 = { 0 3 4 | -7 3 4}
+@EN38 = { 0 3 5 | -8 3 5}
+@EN47 = { 0 4 3 | -7 4 3}
+@EN49 = { 0 4 5 | -9 4 5}
+@EN57 = { 0 5 2 | -7 5 2}
+@EN58 = { 0 5 3 | -8 5 3}
+@EN59 = { 0 5 4 | -9 5 4}
+
+@MP1 = {4 20 4}
+@MP2 = {0 36 2}
+
+
+@v00 = {3 5 9 9 9 9 8 8 8 8 8 7 7 7 7 6 6 6 6 6 5 5 5 4 4 4 4 4 3 3 3 3 3 3 2} +16
+@v01 = {11 12 12 12 11 11 11 11 11 11 11 11 10 10 9 9 8 8 7 7 6 5 4 } *2
+@v41 = {0 1 1 2 2 3 3 4 5 6 7 8 9 10 11 12 12 11 11 11 11 11 10 10 10 9 9 9 8 8 7 7 6 5 4} * 2
+@v10 = {8 9 5 2} * 2
+@v11 = {8 7 3 1} * 2
+
+@v02 = {3 6 10 11 10 9 9 9 9 8 8 8 8 7 7 7 7 6 6 6 6 6 5 } *2
+@v03 = {1 2 6 6 5 5 5 4 4 4 3 3 3 3 2 2 2 2 2 2 1} +16
+@v04 = {1 3 7 7 6 6 6 5 5 5 4 4 4 4 3 3 3 3 3 3 2 2 2 1 } +16
+@v05 = {2 4 8 8 7 7 7 6 6 6 5 5 5 5 4 4 4 4 4 4 3 3 3 2 2 2 2 1} +16
+
+@v20 = {6 3 3 1 0} ' 2 * 3
+@v21 = {8 4 4 2 1} ' 2 * 3
+
+@v30 = {3 5 9 9 9 9 8 8 8 8 8 7 7 7 7 6 6 6 6 6 5 5 5 5 4 4 4 4 3 3 3 3 2 2 2 2 2 1 1 1 1 0} +16
+@v31 = {3 5 9 9 9 9 8 8 8 8 8 7 7 7 7 6 6 6 6 6 5 5 5 4 4 4 4 4 3 3 3 3 3 3 2} * 2
+@v32 = {3 5 9 9 9 9 8 8 8 8 8 7 7 7 7 6 6 6 6 6 5 5 5 4 4 4 4 4 3 3 3 3 3 3 2} * 2
+@v33 = {3 5 9 9 9 9 8 8 8 8 8 7 7 7 7 6 6 6 6 6 5 5 5 4 4 4 4 4 3 3 3 3 3 3 2} * 2
+
+@WT0 = { ; Saw wave
+0 : 31
+}
+
+@WT2 = { ; Momotaro bass
+2 5 10 12 14 14 15 15
+15 15 14 14 12 10 5 2
+2 3 5 7 9 11 13 15
+15 13 11 9 7 5 3 2
+} * 2
+
+@WT3 = {  ; 75% square
+31 ' 24
+0 ' 8
+}
+
+@WT5 = {  ; 12.5% square
+31 ' 4
+0 ' 28
+}
+
+@WT6 = {
+8 11 12 15 16 18 19 20
+21 21 28 26 25 24 23 22
+21 20 9 9 8 7 7 8
+9 10 11 12 11 10 9 8
+}
+
+@WT7 = {
+8 8 7 7 6 6 12 16
+20 25 26 26 26 25 24 23
+23 22 21 21 20 20 19 19
+19 18 16 15 14 13 12 11
+}
+
+@WT8 = {
+8 7 7 6 6 16 25 25
+16 6 5 4 3 2 0 0
+1 3 5 7 16 31 31 31
+28 26 24 7 12 15 20 12
+}
+
+@WT9 = {
+25 ' 8
+0 ' 8
+31 ' 4
+6 ' 6
+28 ' 3
+1 3 7
+}
+
+ABCDE t88
+
+
+A o5 l16 WT8 @v00
+A  c8cc<b>c<ab  MP2
+A L
+A o5 l16 @v00
+A c4c8<b4@v30b4.@v00aaa8ba>c<bg>c<e4.
+A e8@v05e8@v04e8@v03e8@v00ggg8agba>c4c8<b4@v30b4.
+A @v00aaa8ba>c<bb2 b8@v05b8@v04b8@v03b8 @v00>ccc8<b>c<ab 
+A >c4c8<b4@v30b4.@v00aaa8ba>c<bg>c<e2
+A e8@v05e8@v04e8@v03e8 @v00geagba>c4c8<b4@v30b4.
+A >c8<b>cc<b>dcc2&c8 c8@v05c8@v04c8@v03c8 @v00c8<b>c<ab
+
+
+B l16 o3 @v01 WT5
+B  @v41f4.<e>e  MP1
+B L
+B l16 o2 @v01 ;@@8
+B f>f<fr f>f<g>g <grg>g <a>a<ar a>a<f>f <frf>f c>c<cr c>c<<b>b
+B <brb>b <a>a<ar a>a<g>g <grg>g <f>f<fr f>f<e>e <ere>e <d>d<dr
+B d>d<f>f <frf>f <g>g<gr g>g<g>g <grg>g <g>g<gr g>g<g>g <grg>g
+B <f>f<fr f>f<g>g <grg>g <a>a<ar a>a<f>f <frf>f c>c<cr c>c<<b>b
+B <brb>b <a>a<ar a>a<g>g <gr>g<g f>f<fr f>f<e>e <ere>e <d>d<dr
+B d>d<g>g <grg>g c>c<cr c>c<c>c <crc>c <c>c<cr c>c<c>c <crc>c
+
+
+C o5 l32 @v01 WT7
+C r4.EN37aa>a<aENOF
+C L
+C o5 l32 
+C EN47 ff>f<fffffff>f<f gg>g<ggggggg>g<g ENOF EN37 aa>a<aaaaaaa>a<a ENOF
+C EN47 ff>f<fffffff>f<f ENOF EN59 gg>g<ggggggg>g<ggg>g<g 
+C gggggg>g<g gg>g<ggggg gg>g<ggg>g<g gggggg>g<g
+C ENOF EN47 ff>f<fffff ff>f<fENOFEN37ee>e<e eeeeee>e<e dd>d<ddddd ENOF
+C dd>d<dENOFEN47ff>f<f ffffff>f<f gg>g<ggggg gg>g<ggg>g<g
+C gggggg>g<g gg>g<ggggg gg>g<ggg>g<g gggggg>g<g
+C ff>f<fffff ff>f<fgg>g<g gggggg>g<g ENOFEN37 aa>a<aaaaa
+C aa>a<aENOFEN47ff>f<f ffffff>f<f ENOFEN59 gg>g<ggggg gg>g<ggg>g<g 
+C gggggg>g<g gg>g<ggggg gg>g<ggg>g<g gggggg>g<g
+C ENOFEN47 ff>f<fffff ff>f<fENOFEN37ee>e<e eeeeee>e<e dd>d<ddddd
+C dd>d<dENOFEN47gg>g<g gggggg>g<g ENOFEN59 gg>g<ggggg gg>g<g ENOFEN57 gg>g<g 
+C gggggg>g<g ENOFEN59 gg>g<ggggg gg>g<ggg>g<g gggggg>g<g
+
+
+E r2
+E o9 l32 @1
+E L
+E [@v20arrra16rr a16@v21aa@v20arrr @v20a16rra16@v21aa @v20arrra16r16  ;1
+E a16@v21aa@v20arrr a16r16a16@v21aa @v20arrra16r16 a16@v21aa@v20arrr
+E a16r16a16@v21aa @v20arrra16r16 a16@v21aa@v20arrr a16r16a16@v21aa   ; 2
+E @v20arrra16r16 a16@v21aa@v20arrr a16r16a16@v21aa @v20arrra16r16
+E a16@v21aa@v20arrr a16rra16@v21aa @v20arrra16rr a16@v21aa@v20arrr
+E a16rra16@v21aa @v20arrra16rr a16@v21aa@v20arrr a16rra16@v21aa]2
+
+
+D r2 M2
+D o0 l32
+D L
+D [r8.e16 r4 r16e16r8 r8.e16 r4 r16e16r8 r8.e16 r4
+D r16e16r4r16e16r4r16e16r4r16e16r4r16e16r4r16e16
+D r4r16e16 r4r16e16 r4r16e16 r4r16e16 r4r16e16 r8]2

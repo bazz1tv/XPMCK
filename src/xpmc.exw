@@ -1,0 +1,4482 @@
+-- Cross Platform Music Compiler
+-- /Mic, 2008-2011
+
+-- This is the compiler part of XPMCK, which apart from the compiler also contains
+-- playback libraries for the supported targets.
+
+without warning
+
+include file.e
+include get.e
+include wildcard.e
+include machine.e
+include assoc.e
+include globals.e
+include list.e
+--include mdx.e
+include string.e
+include target_at8.e
+include target_c64.e
+include target_clv.e
+include target_cpc.e
+include target_cps.e
+include target_gbc.e
+include target_gen.e
+include target_kss.e
+include target_pce.e
+include target_sgg.e
+include target_sms.e
+include util.e
+include vgm.e
+include wav.e
+--include ym.e
+
+
+constant LOOP_START_POS = 1,
+         LOOP_START_TICK = 2,
+         LOOP_JUMP_IF_1_TICK = 4,
+         LOOP_JUMP_IF_1_POS = 5
+         
+         
+-- Calculate the length of a note in frames based on its length in 32nd notes, the current tempo,
+-- the current playback speed and the current note cutoff setting.
+function note_length(integer chn, atom len)
+	atom frames, cutoffFrames, scaling
+	integer length32, length256, w1, w2
+
+	frames = (updateFreq * 60.0) / currentTempo[chn]			-- frames per quarternote
+	--printf(1,"chn=%d, len=%d, frames=%d\n",{chn,len,frames})
+	if useFractionalDelays then
+		length32 = floor((frames / 8) * 256)
+		scaling = 256
+		frames = floor(length32 * len)
+		
+		if currentCutoff[chn][CUTOFF_TYPE] = CT_FRAMES or
+		   currentCutoff[chn][CUTOFF_TYPE] = CT_NEG_FRAMES then
+			cutoffFrames = currentCutoff[chn][CUTOFF_VALUE] * scaling
+			if cutoffFrames > frames then
+				cutoffFrames = frames
+			end if
+		else
+			cutoffFrames = (frames * (8 - currentCutoff[chn][CUTOFF_VALUE])) / 8
+		end if
+		--if length(currentNote[chn]) and currentNote[chn][1] != rest then
+		--	--printf(1,"* %x, %x\n",{frames,cutoffFrames})
+			frames = floor(frames)-floor(cutoffFrames)
+		--else
+		--	cutoffFrames = 0
+		--end if
+		if frames < 0 then
+			ERROR("Note has negative length", lineNum)
+		end if
+	else
+		scaling = 1
+		length32 = floor(frames / 8)				-- frames per 1/32 note
+		frames = length32 * len
+		if currentCutoff[chn][CUTOFF_TYPE] = CT_FRAMES or
+		   currentCutoff[chn][CUTOFF_TYPE] = CT_NEG_FRAMES then
+			cutoffFrames = currentCutoff[chn][CUTOFF_VALUE]
+			if cutoffFrames > frames then
+				cutoffFrames = frames
+			end if
+		else				
+			cutoffFrames = floor((frames * (8 - currentCutoff[chn][CUTOFF_VALUE])) / 8)
+		end if
+		frames -= cutoffFrames 
+	end if
+	
+	if frames < 1.0 * scaling then
+		WARNING("Note is too short, will not be heard", lineNum)
+	elsif floor(frames) > #3FFF * scaling + (scaling - 1) then
+		WARNING("Note is too long, cutting at 16383 frames", lineNum)
+		frames = #3FFF * scaling + (scaling - 1)
+	end if
+	
+	--printf(1,".chn=%d, len=%d, frames=%d,cutoff=%d\n",{chn,len,frames,cutoffFrames})
+	return {frames, cutoffFrames}					
+end function
+
+
+
+procedure write_length(integer chn)
+	integer w1,w2
+	atom scaling
+	
+	if useFractionalDelays then
+		w1 = floor(currentNoteFrames[chn][1])
+		--printf(1,"chn=%d, w1 = %d\n",{chn,w1})
+		w2 = floor(currentNoteFrames[chn][2])
+		scaling = 256
+		
+		if and_bits(w1, #FF) < shortestDelay[2] and and_bits(w1, #FF) > 0 then
+			shortestDelay[2] = and_bits(w1, #FF)
+		end if
+		if w2 >= 1 and and_bits(w2, #FF) < shortestDelay[2] and and_bits(w2, #FF) > 0 then
+			shortestDelay[2] = and_bits(w2, #FF)
+		end if
+		if floor(w1 / #100) < shortestDelay[1] then
+			shortestDelay[1] = floor(w1 / #100)
+		end if
+		if w2 >= 1 and floor(w2 / #100) < shortestDelay[1] then
+			shortestDelay[1] = floor(w2 / #100)
+		end if
+		if floor(w1 / #100) > longestDelay then
+			longestDelay = floor(w1 / #100)
+		end if
+		if floor(w2 / #100) > longestDelay then
+			longestDelay = floor(w2 / #100)
+		end if
+		
+		if floor(currentNoteFrames[chn][1]) > 127 * scaling then
+			ADD_CMD(chn, {or_bits(floor(w1 / #8000), #80),
+				    and_bits(floor(w1 / #100), #7F),
+				    and_bits(w1, #FF)})
+		else
+			ADD_CMD(chn, {floor(w1 / #100),
+				    and_bits(w1, #FF)})
+		end if
+		
+		--if floor(currentNoteFrames[chn][2]) > 127 * scaling then
+		--	ADD_CMD(chn, {or_bits(floor(w2 / #8000), #80),
+		--		    and_bits(floor(w2 / #100), #7F),
+		--		    and_bits(w2, #FF)})
+		--elsif w2 >= 1 then
+		--	ADD_CMD(chn, {floor(w2 / #100),
+		--		    and_bits(w2, #FF)})
+		--
+		--end if
+	else
+		w1 = floor(currentNoteFrames[chn][1])
+		w2 = floor(currentNoteFrames[chn][2])
+
+		if w1 < shortestDelay[1] then
+			shortestDelay[1] = w1
+		end if
+		if w2 >= 1 and w2 < shortestDelay[1] then
+			shortestDelay[1] = w2
+		end if
+		if w1 > longestDelay then
+			longestDelay = w1
+		end if
+		if w2 > longestDelay then
+			longestDelay = w2
+		end if
+
+		if w1 > 127 then
+			ADD_CMD(chn, {or_bits(floor(w1 / 128), #80),
+				    and_bits(w1, #7F)})
+		elsif w1 >= 1 then
+			ADD_CMD(chn, {w1})
+		end if
+		--if w2 > 127 then
+		--	ADD_CMD(i, {CMD_REST,
+		--		    or_bits(floor(w2 / 128), #80),
+		--		    and_bits(w2, #7F)})
+		--elsif w2 >= 1 then
+		--	ADD_CMD(i, {CMD_REST, w2})
+		--end if
+	end if
+end procedure
+
+
+
+-- Output all pending notes to the current song sequence			
+procedure write_note(integer forceOctChange)
+	atom frames, cutoffFrames, scaling
+	integer length32, length256, w1, w2
+	
+	for i = 1 to length(supportedChannels) do
+		if length(currentNote[i]) then
+			if integer(tuple[i]) then
+				songLen[songNum][i] += currentNote[i][2]
+				
+				if 0 then --currentNote[i][2] = currentLength[i] then
+					if pendingOctChange[i] then
+						ADD_CMD(i, {or_bits(CMD_OCTAVE, currentOctave[i])}) 
+						pendingOctChange[i] = 0
+					end if
+					if currentNote[i][1] = rest then
+						currentNote[i][1] = CMD_REST
+					elsif currentNote[i][1] = rest2 then
+						currentNote[i][1] = CMD_REST2
+					else
+						currentNote[i][1] = remainder(currentNote[i][1], 12)
+					end if					
+					ADD_CMD(i, {or_bits(currentNote[i][1], CMD_NOTE2)})
+			
+				else
+					frames = (updateFreq * 60.0) / currentTempo[i]			-- frames per quarternote
+
+					if useFractionalDelays then
+						length32 = floor((frames / 8) * 256)
+						scaling = 256
+						--frames *= currentNote[i][2] / 8
+						frames = length32 * currentNote[i][2]
+						if currentCutoff[i][CUTOFF_TYPE] = CT_FRAMES or
+						   currentCutoff[i][CUTOFF_TYPE] = CT_NEG_FRAMES then
+							cutoffFrames = currentCutoff[i][CUTOFF_VALUE] * scaling
+							if cutoffFrames > frames then
+								cutoffFrames = frames
+							end if
+						else
+							cutoffFrames = (frames * (8 - currentCutoff[i][CUTOFF_VALUE])) / 8
+						end if
+						if currentNote[i][1] != rest and currentNote[i][1] != rest2 then
+							--printf(1,"* %x, %x\n",{frames,cutoffFrames})
+							frames = floor(frames)-floor(cutoffFrames)
+						else
+							cutoffFrames = 0
+						end if
+						if frames < 0 then
+							ERROR("Note has negative length", lineNum)
+						end if
+					else
+						scaling = 1
+						length32 = floor(frames / 8)				-- frames per 1/32 note
+						frames = length32 * currentNote[i][2]
+						if currentCutoff[i][CUTOFF_TYPE] = CT_FRAMES or
+						   currentCutoff[i][CUTOFF_TYPE] = CT_NEG_FRAMES then
+							cutoffFrames = currentCutoff[i][CUTOFF_VALUE]
+							if cutoffFrames > frames then
+								cutoffFrames = frames
+							end if
+						else				
+							cutoffFrames = floor((frames * (8 - currentCutoff[i][CUTOFF_VALUE])) / 8)
+						end if
+						frames -= cutoffFrames 
+					end if
+
+					if frames < 1.0 * scaling then
+						WARNING("Note is too short, will not be heard", lineNum)
+					elsif floor(frames) > #3FFF * scaling + (scaling - 1) then
+						WARNING("Note is too long, cutting at 16383 frames", lineNum)
+						frames = #3FFF * scaling + (scaling - 1)
+					end if
+
+					if currentNote[i][1] = rest then
+						currentNote[i][1] = CMD_REST
+					elsif currentNote[i][1] = rest2 then
+						currentNote[i][1] = CMD_REST2
+					else
+						currentNote[i][1] = remainder(currentNote[i][1], 12)
+					end if
+
+					if pendingOctChange[i] = 1 then
+						currentNote[i][1] = or_bits(currentNote[i][1], CMD_OCTUP)
+					elsif pendingOctChange[i] = -1 then
+						currentNote[i][1] = or_bits(currentNote[i][1], CMD_OCTDN)
+					end if
+
+					if useFractionalDelays then
+						w1 = floor(frames) 
+						w2 = floor(cutoffFrames)
+						--printf(1,"  %x, %x, %x, %x\n",{frames,w1,w2, #6B6-#1AD})
+						if and_bits(w1, #FF) < shortestDelay[2] and and_bits(w1, #FF) > 0 then
+							shortestDelay[2] = and_bits(w1, #FF)
+						end if
+						if w2 >= 1 and and_bits(w2, #FF) < shortestDelay[2] and and_bits(w2, #FF) > 0 then
+							shortestDelay[2] = and_bits(w2, #FF)
+						end if
+						if floor(w1 / #100) < shortestDelay[1] then
+							shortestDelay[1] = floor(w1 / #100)
+						end if
+						if w2 >= 1 and floor(w2 / #100) < shortestDelay[1] then
+							shortestDelay[1] = floor(w2 / #100)
+						end if
+						if floor(w1 / #100) > longestDelay then
+							longestDelay = floor(w1 / #100)
+						end if
+						if floor(w2 / #100) > longestDelay then
+							longestDelay = floor(w2 / #100)
+						end if
+						if currentCutoff[i][CUTOFF_TYPE] = CT_NORMAL or
+						   currentCutoff[i][CUTOFF_TYPE] = CT_FRAMES then
+							if floor(frames) = currentNoteFrames[i][1] then
+								if not pendingOctChange[i] then
+									ADD_CMD(i, {or_bits(currentNote[i][1], CMD_NOTE2)})
+								else
+									ADD_CMD(i, {currentNote[i][1]})
+								end if
+							else
+								if pendingOctChange[i] then
+									ADD_CMD(i, {or_bits(CMD_OCTAVE, currentOctave[i])})
+									currentNote[i][1] = and_bits(currentNote[i][1], #0F)
+									pendingOctChange[i] = 0
+								end if
+								if floor(frames) > 127 * scaling then
+									ADD_CMD(i, {currentNote[i][1],
+										    or_bits(floor(w1 / #8000), #80),
+										    and_bits(floor(w1 / #100), #7F),
+										    and_bits(w1, #FF)})
+								else
+									ADD_CMD(i, {currentNote[i][1],
+										    floor(w1 / #100),
+										    and_bits(w1, #FF)})
+								end if
+							end if
+							--if floor(cutoffFrames) = currentNoteFrames[i][2] then
+							--	ADD_CMD(i, {CMD_REST3})
+							--else
+								if floor(cutoffFrames) > 127 * scaling then
+									ADD_CMD(i, {CMD_REST,
+										    or_bits(floor(w2 / #8000), #80),
+										    and_bits(floor(w2 / #100), #7F),
+										    and_bits(w2, #FF)})
+								elsif w2 >= 1 then
+									ADD_CMD(i, {CMD_REST, 
+										    floor(w2 / #100),
+										    and_bits(w2, #FF)})
+								end if
+							--end if
+						else
+							--if floor(cutoffFrames) = currentNoteFrames[i][2] then
+							--	ADD_CMD(i, {CMD_REST3})
+							--else
+								if floor(cutoffFrames) > 127 * scaling then
+									ADD_CMD(i, {CMD_REST,
+										    or_bits(floor(w2 / #8000), #80),
+										    and_bits(floor(w2 / #100), #7F),
+										    and_bits(w2, #FF)})
+								elsif w2 >= 1 then
+									ADD_CMD(i, {CMD_REST, 
+										    floor(w2 / #100),
+										    and_bits(w2, #FF)})
+								end if
+							--end if
+							if floor(frames) = currentNoteFrames[i][1] then
+								if not pendingOctChange[i] then
+									ADD_CMD(i, {or_bits(currentNote[i][1], CMD_NOTE2)})
+								else
+									ADD_CMD(i, {currentNote[i][1]})
+								end if
+							else
+								if pendingOctChange[i] then
+									ADD_CMD(i, {or_bits(CMD_OCTAVE, currentOctave[i])})
+									currentNote[i][1] = and_bits(currentNote[i][1], #0F)
+									pendingOctChange[i] = 0
+								end if
+								if floor(frames) > 127 * scaling then
+									ADD_CMD(i, {currentNote[i][1],
+										    or_bits(floor(w1 / #8000), #80),
+										    and_bits(floor(w1 / #100), #7F),
+										    and_bits(w1, #FF)})
+								else
+									ADD_CMD(i, {currentNote[i][1],
+										    floor(w1 / #100),
+										    and_bits(w1, #FF)})
+								end if
+							end if
+						end if
+					else
+						w1 = floor(frames)
+						w2 = floor(cutoffFrames)
+
+						if w1 < shortestDelay[1] then
+							shortestDelay[1] = w1
+						end if
+						if w2 >= 1 and w2 < shortestDelay[1] then
+							shortestDelay[1] = w2
+						end if
+						if w1 > longestDelay then
+							longestDelay = w1
+						end if
+						if w2 > longestDelay then
+							longestDelay = w2
+						end if
+
+						if w1 > 127 then
+							ADD_CMD(i, {currentNote[i][1],
+								    or_bits(floor(w1 / 128), #80),
+								    and_bits(w1, #7F)})
+						elsif w1 >= 1 then
+							ADD_CMD(i, {currentNote[i][1], w1})
+						end if
+						if w2 > 127 then
+							ADD_CMD(i, {CMD_REST,
+								    or_bits(floor(w2 / 128), #80),
+								    and_bits(w2, #7F)})
+						elsif w2 >= 1 then
+							ADD_CMD(i, {CMD_REST, w2})
+						end if
+					end if
+				end if
+			else
+				if pendingOctChange[i] = 1 then
+					currentNote[i][1] = or_bits(currentNote[i][1], CMD_OCTUP)
+				elsif pendingOctChange[i] = -1 then
+					currentNote[i][1] = or_bits(currentNote[i][1], CMD_OCTDN)
+				end if
+				tuple[i] = append(tuple[i], currentNote[i])
+			end if
+			currentNote[i] = {}
+			pendingOctChange[i] = 0
+			hasAnyNote[i] = 1
+			
+		elsif forceOctChange and pendingOctChange[i] then
+			ADD_CMD(i, {or_bits(CMD_OCTAVE, currentOctave[i])}) 
+			pendingOctChange[i] = 0
+		end if
+	end for
+end procedure
+
+
+
+procedure write_tuple(integer chn, sequence t, atom len)
+	atom totalFrames, frames, cutoffFrames, scaling
+	integer length32, w1, w2
+
+	songLen[songNum][chn] += len
+	totalFrames = (updateFreq * 60.0) / currentTempo[chn]
+	if useFractionalDelays then
+		length32 = floor((totalFrames / 8) * 256)
+		scaling = 256
+		totalFrames = floor(length32 * len) 	
+
+		if currentCutoff[chn][CUTOFF_TYPE] = CT_FRAMES or
+		   currentCutoff[chn][CUTOFF_TYPE] = CT_NEG_FRAMES then
+			cutoffFrames = currentCutoff[chn][CUTOFF_VALUE] * scaling
+			if cutoffFrames > totalFrames then
+				cutoffFrames = totalFrames
+			end if
+		else
+			cutoffFrames = (totalFrames * (8 - currentCutoff[chn][CUTOFF_VALUE])) / 8
+		end if
+		totalFrames -= cutoffFrames
+		if totalFrames < 0 then
+			ERROR("Tuple has negative length", lineNum)
+		end if
+	else
+	end if
+	
+	if totalFrames < 1.0 * scaling then
+		WARNING("Note is too short, will not be heard", lineNum)
+	elsif floor(totalFrames) > #3FFF * scaling + (scaling - 1) then
+		WARNING("Note is too long, cutting at 16383 frames", lineNum)
+		totalFrames = #3FFF * scaling + (scaling - 1)
+	end if
+
+	frames = totalFrames / length(t)
+	w1 = floor(frames) -- * 256)
+	for i = 1 to length(t) do
+		t[i][2] = w1
+	end for
+	for i = 1 to floor(totalFrames) - (w1 * length(t)) do
+		t[remainder(i, length(t)) + 1][2] += 1
+	end for
+	w2 = floor(cutoffFrames) -- * 256)
+	
+	if currentCutoff[chn][CUTOFF_TYPE] = CT_NEG or
+	   currentCutoff[chn][CUTOFF_TYPE] = CT_NEG_FRAMES then
+		if floor(cutoffFrames) > 127 * scaling then
+			ADD_CMD(chn, {CMD_REST,
+				      or_bits(floor(w2 / #8000), #80),
+				      and_bits(floor(w2 / #100), #7F),
+				      and_bits(w2, #FF)})
+		elsif w2 >= 1 then
+			ADD_CMD(chn, {CMD_REST, 
+				      floor(w2 / #100),
+				      and_bits(w2, #FF)})
+		end if
+	end if
+	
+	for i = 1 to length(t) do
+		if t[i][1] = rest then
+			t[i][1] = CMD_REST
+		elsif t[i][1] = rest2 then
+			t[i][1] = CMD_REST2
+		else
+			t[i][1] = remainder(t[i][1], 12)
+		end if
+
+		if useFractionalDelays then
+			if floor(t[i][2] / 256) > 127 then
+				ADD_CMD(chn, {t[i][1],
+					      or_bits(floor(t[i][2] / #8000), #80),
+					      and_bits(floor(t[i][2] / #100), #7F),
+					      and_bits(t[i][2], #FF)})
+			else
+				ADD_CMD(chn, {t[i][1], floor(t[i][2] / #100), and_bits(t[i][2], #FF)})
+			end if
+
+			if and_bits(t[i][2], #FF) < shortestDelay[2] and and_bits(t[i][2], #FF) > 0 then
+				shortestDelay[2] = and_bits(t[i][2], #FF)
+			end if
+			if floor(t[i][2] / #100) < shortestDelay[1] then
+				shortestDelay[1] = floor(t[i][2] / #100)
+			end if
+			if floor(t[i][2] / #100) > longestDelay then
+				longestDelay = floor(t[i][2] / #100)
+			end if
+		else
+		end if
+	end for
+	
+
+	if w2 >= 1 then
+		if and_bits(w2, #FF) < shortestDelay[2] and and_bits(w2, #FF) > 0 then
+			shortestDelay[2] = and_bits(w2, #FF)
+		end if
+		if floor(w2 / #100) < shortestDelay[1] then
+			shortestDelay[1] = floor(w2 / #100)
+		end if
+		if floor(w2 / #100) > longestDelay then
+			longestDelay = floor(w2 / #100)
+		end if
+	end if
+	
+	if currentCutoff[chn][CUTOFF_TYPE] = CT_NORMAL or
+	   currentCutoff[chn][CUTOFF_TYPE] = CT_FRAMES then
+		if floor(cutoffFrames) > 127 * scaling then
+			ADD_CMD(chn, {CMD_REST,
+				      or_bits(floor(w2 / #8000), #80),
+				      and_bits(floor(w2 / #100), #7F),
+				      and_bits(w2, #FF)})
+		elsif w2 >= 1 then
+			ADD_CMD(chn, {CMD_REST, 
+				      floor(w2 / #100),
+				      and_bits(w2, #FF)})
+		end if
+	end if
+end procedure
+
+
+function get_effect_frequency()
+	sequence s, t
+	integer n, retVal
+	object o
+	
+	retVal = 0
+	
+	skip_whitespace()
+	n = getch()
+	if n = '(' then
+		t = get_string_until(")\t " & {13,10})
+		if equal(t, "EVERY-FRAME") then
+			retVal = 0
+		elsif equal(t, "EVERY-NOTE") then
+			retVal = 1
+		else
+			ERROR("Unsupported effect frequency: " & t, lineNum)
+		end if
+		if getch() != ')' then
+			ERROR("Syntax error: expected )", lineNum)
+		end if
+	else
+		ungetch()
+	end if
+	
+	return retVal
+end function
+
+
+procedure compile_file(sequence fileName)
+	integer idx, l, m, n, n2, numChannels, prevLine,
+	        note, firstNote, flatSharp, dot,
+	        hasTie, hasSlur, writeVGM, oldLineNum,
+	        slurOff,dotOff,tieOff, wtType, volType
+	atom len
+	sequence s, t, u, macro, defaultParm, oldFileData, oldSFN, workDir
+	object o
+
+	inFile = open(fileName, "rb")
+	if inFile = -1 then
+		ERROR("Unable to open file: " & fileName, -1)
+	end if
+
+	oldFileData = {fileData, fileDataPos}	
+	n = 0
+	fileData = ""
+	while n != -1 do
+		n = getc(inFile)
+		if n != -1 then
+			fileData &= n
+		end if
+	end while
+	close(inFile)
+	fileDataPos = 1
+	fileData &= -1
+
+	oldSFN = shortFilename
+	
+	workDir = ""
+	for i = length(fileName) to 1 by -1 do
+		if fileName[i] = '\\' or fileName[i] = '/' then
+			workDir = fileName[1..i]
+			shortFilename = fileName[i+1..length(fileName)]
+			exit
+		end if
+	end for
+	if not length(workDir) then
+		shortFilename = fileName
+		workDir = current_dir() & '\\'
+	end if
+	
+	oldLineNum 	= lineNum
+	lineNum 	= 1
+	prevLine 	= 1
+
+	while 1 do
+		bypass = 0
+		
+		n = getch()
+		if n = -1 then
+			exit
+		end if
+		
+		n2 = n
+		
+		if n = 10 then
+			lineNum += 1
+		end if
+		
+		if lineNum > prevLine then
+			if not keepChannelsActive then
+				activeChannels[1..length(activeChannels)-1] = repeat(0, length(activeChannels)-1)
+			end if
+			prevLine = lineNum
+		end if
+		
+		if dontCompile[1] then
+			if n = '#' then
+				s = get_string()
+				if equal(s, "IFDEF") then
+					s = get_string_until("&| "&{13, 10})
+					l = is_defined(s)
+				--printf(1, "1.ifdef %s (%d)\n", {s, l})
+					while 1 do
+						s = get_string_in_range("|&")
+						if equal(s, "&") then
+							s = get_string_until("&| "&{13, 10})
+							l = and_bits(l, is_defined(s))
+						elsif equal(s, "|") then
+							s = get_string_until("&| "&{13, 10})
+							l = or_bits(l, is_defined(s))
+						else
+							exit
+						end if
+					end while
+					dontCompile = or_bits((not l), dontCompile[1]) & dontCompile
+					hasElse = 0 & hasElse
+					
+				elsif equal(s, "IFNDEF") then
+					s = get_string_until("&| "&{13, 10})
+					l = is_defined(s)
+					while 1 do
+						s = get_string_in_range("|&")
+						if equal(s, "&") then
+							s = get_string_until("&| "&{13, 10})
+							l = or_bits(l, is_defined(s))
+						elsif equal(s, "|") then
+							s = get_string_until("&| "&{13, 10})
+							l = and_bits(l, is_defined(s))
+						else
+							exit
+						end if
+					end while
+					dontCompile = or_bits(l, dontCompile[1]) & dontCompile
+					hasElse = 0 & hasElse
+					
+				elsif equal(s, "ELSIFDEF") then
+					s = get_string_until("&| "&{13, 10})
+					l = is_defined(s)
+				--printf(1,"ELSIFDEF %s (%d)\n", {s, l})
+					while 1 do
+						s = get_string_in_range("|&")
+						if equal(s, "&") then
+							s = get_string_until("&| "&{13, 10})
+							l = and_bits(l, is_defined(s))
+						elsif equal(s, "|") then
+							s = get_string_until("&| "&{13, 10})
+							l = or_bits(l, is_defined(s))
+						else
+							exit
+						end if
+					end while
+					if length(dontCompile) > 1 then
+						if not hasElse[1] then
+							if and_bits(dontCompile[1], 2) != 2 then
+								dontCompile[1] = or_bits((not l), dontCompile[2])
+							end if
+						else
+							ERROR("ELSIFDEF found after ELSE", lineNum)
+						end if
+					else
+						ERROR("ELSIFDEF with no matching IFDEF", lineNum)
+					end if
+					
+				elsif equal(s, "ELSE") then
+					if length(dontCompile) > 1 then
+						if not hasElse[1] then
+							if and_bits(dontCompile[1], 2) != 2 then
+								dontCompile[1] = or_bits((not dontCompile[1]), dontCompile[2])
+							end if
+							hasElse[1] = 1
+						else
+							ERROR("Only one ELSE allowed per IFDEF", lineNum)
+						end if
+					else
+						ERROR("ELSE with no matching IFDEF", lineNum)
+					end if
+
+				elsif equal(s, "ENDIF") then
+					if length(dontCompile) > 1 then
+						dontCompile = dontCompile[2..length(dontCompile)]
+						hasElse = hasElse[2..length(hasElse)]
+					else
+						ERROR("ENDIF with no matching IFDEF", lineNum)
+					end if
+				end if
+			end if
+		else
+		
+			if n = '#' then
+				write_note(1)
+				s = get_string()
+				if equal(s, "TITLE") then
+					songTitle = get_string_until({13, 10})
+
+				elsif equal(s, "TUNE") then
+					tune = 1
+					
+				elsif equal(s, "COMPOSER") then
+					songComposer = get_string_until({13, 10})
+
+				elsif equal(s, "PROGRAMER") or equal(s, "PROGRAMMER") then
+					songProgrammer = get_string_until({13, 10})
+
+				elsif equal(s, "GAME") then
+					songGame = get_string_until({13, 10})
+				elsif equal(s, "ALBUM") then
+					songAlbum = get_string_until({13, 10})
+
+				elsif equal(s, "ERROR") then
+					skip_whitespace()
+					if getch() = '\"' then
+						s = get_string_until({'\"'})
+						if getch() = '\"' then
+							ERROR(s, lineNum)
+						else
+							ERROR("Malformed #ERROR, missing ending \"", lineNum)
+						end if
+					else
+						ERROR("Malformed #ERROR, missing starting \"", lineNum)
+					end if
+
+				elsif equal(s, "WARNING") then
+					skip_whitespace()
+					if getch() = '\"' then
+						s = get_string_until({'\"'})
+						if getch() = '\"' then
+							WARNING(s, lineNum)
+						else
+							ERROR("Malformed #WARNING, missing ending \"", lineNum)
+						end if
+					else
+						ERROR("Malformed #WARNING, missing starting \"", lineNum)
+					end if
+					
+				elsif equal(s, "INCLUDE") then
+					skip_whitespace()
+					if getch() = '\"' then
+						s = get_string_until({'\"'})
+						if getch() = '\"' then
+							if length(s) then
+								if not find(':', s) and s[1] != '\\' then
+									s = workDir & s
+								end if
+								compile_file(s)
+							end if
+						else
+							ERROR("Malformed #INCLUDE, missing ending \"", lineNum)
+						end if
+					else
+						ERROR("Malformed #INCLUDE, missing starting \"", lineNum)
+					end if
+					
+				elsif equal(s, "PAL") then
+					if supportsPAL then
+						updateFreq = 50.0
+					end if
+
+				elsif equal(s, "NTSC") then
+					updateFreq = 60.0
+
+				elsif equal(s, "IFDEF") then
+					s = get_string_until("&| "&{13, 10})
+					l = is_defined(s)
+				--printf(1, "2.ifdef %s (%d)\n", {s, l})
+					while 1 do
+						s = get_string_in_range("|&")
+						if equal(s, "&") then
+							s = get_string_until("&| "&{13, 10})
+							l = and_bits(l, is_defined(s))
+						elsif equal(s, "|") then
+							s = get_string_until("&| "&{13, 10})
+							l = or_bits(l, is_defined(s))
+						else
+							exit
+						end if
+					end while
+					dontCompile = or_bits((not l), dontCompile[1]) & dontCompile
+					hasElse = 0 & hasElse
+
+				elsif equal(s, "IFNDEF") then
+					s = get_string_until("&| "&{13, 10})
+					l = is_defined(s)
+					while 1 do
+						s = get_string_in_range("|&")
+						if equal(s, "&") then
+							s = get_string_until("&| "&{13, 10})
+							l = or_bits(l, is_defined(s))
+						elsif equal(s, "|") then
+							s = get_string_until("&| "&{13, 10})
+							l = and_bits(l, is_defined(s))
+						else
+							exit
+						end if
+					end while
+					dontCompile = or_bits(l, dontCompile[1]) & dontCompile
+					hasElse = 0 & hasElse
+
+				elsif equal(s, "ELSIFDEF") then
+					if length(dontCompile) > 1 then
+						if not hasElse[1] then
+							s = get_string_until({13, 10})
+							dontCompile[1] = 2
+						else
+							ERROR("ELSIFDEF found after ELSE", lineNum)
+						end if
+					else
+						ERROR("ELSIFDEF with no matching IFDEF", lineNum)
+					end if
+					
+				elsif equal(s, "ELSE") then
+					if length(dontCompile) > 1 then
+						if not hasElse[1] then
+							dontCompile[1] = 1 
+							hasElse[1] = 1
+						else
+							ERROR("Only one ELSE allowed per IFDEF", lineNum)
+						end if
+					else
+						ERROR("ELSE with no matching IFDEF", lineNum)
+					end if
+
+				elsif equal(s, "ENDIF") then
+					if length(dontCompile) > 1 then
+						dontCompile = dontCompile[2..length(dontCompile)]
+						hasElse = hasElse[2..length(hasElse)]
+					else
+						ERROR("ENDIF with no matching IFDEF", lineNum)
+					end if
+
+				elsif equal(s, "SONG") then
+					s = get_string()
+					o = value(s)
+					if o[1] = GET_SUCCESS then
+						if integer(o[2]) and o[2] > 1 and o[2] < 100 then
+							if integer(songs[o[2]]) then
+								m = -1
+								l = 0
+								for i = 1 to length(supportedChannels) do
+									if songLen[songNum][i] then
+									--	if m = -1 then
+									--		m = songLen[songNum][i]
+									--	elsif songLen[songNum][i] != m then
+									--		WARNING("Mismatch in length between channels", -1)
+									--		exit
+									--	end if
+									end if
+									songLoopLen[songNum][i] = songLen[songNum][i] - songLoopLen[songNum][i]
+									
+									if loopPoint[i] = -1 then
+										songs[songNum][i] &= CMD_END
+									else
+										if not hasAnyNote[i] then
+											songs[songNum][i] &= CMD_END
+										else
+											songs[songNum][i] &= {CMD_JMP, and_bits(loopPoint[i], #FF), floor(loopPoint[i] / #100)}
+										end if
+									end if
+									loopPoint[i] = -1
+								end for
+								if keepChannelsActive or length(patName) then
+									ERROR("Missing }", lineNum)
+								end if
+								songNum = o[2]
+								songs[songNum] = repeat({}, length(supportedChannels))
+								songLen[songNum] = repeat(0, length(supportedChannels))
+								hasAnyNote = repeat(0, length(supportedChannels))
+								songLoopLen[songNum] = songLen[songNum]
+								--loopPoint = repeat(-1, length(supportedChannels))
+								for i = 1 to length(loopStack) do
+									if length(loopStack[i]) then
+										ERROR("Open [ on channel " & supportedChannels[i], lineNum)
+									end if
+								end for
+							else
+								ERROR("Song " & s & " already defined", lineNum)
+							end if
+						else
+							ERROR("Bad song number: " & s, lineNum)
+						end if
+					else
+						ERROR("Bad song number: " & s, lineNum)
+					end if
+
+				elsif equal(s, "BASE") then
+					s = get_string()
+					o = value(s)
+					if o[1] = GET_SUCCESS then
+						if o[2] = 10 then
+							userDefinedBase = 10
+						elsif o[2] = 16 then
+							userDefinedBase = 16
+						else
+							WARNING("Expected 10 or 16, defaulting to 10: " & s, lineNum)
+						end if
+					else
+						ERROR("Expected 10 or 16: " & s, lineNum)
+					end if
+					
+				elsif equal(s, "UNIFORM-VOLUME") then
+					s = get_string()
+					o = value(s)
+					if o[1] = GET_SUCCESS then
+						if o[2] > 1 then
+							maxVolume = repeat(o[2], length(supportedChannels))
+							if o[2] > 255 then
+								WARNING("Very large max volume specified: " & s, lineNum)
+							end if
+						else
+							ERROR("Volume must be >= 1: " & s, lineNum)
+						end if
+					else
+						ERROR("Expected a positive number: " & s, lineNum)
+					end if
+
+				elsif equal(s, "GB-VOLUME-CONTROL") then
+					s = get_string()
+					o = value(s)
+					if o[1] = GET_SUCCESS then
+						if o[2] = 1 then
+							gbVolCtrl = 1
+						elsif o[2] = 0 then
+							gbVolCtrl = 0
+						else
+							WARNING("Expected 0 or 1, defaulting to 0: " & s, lineNum)
+						end if
+					else
+						ERROR("Expected 0 or 1: " & s, lineNum)
+					end if
+
+				elsif equal(s, "GB-NOISE") then
+					s = get_string()
+					o = value(s)
+					if o[1] = GET_SUCCESS then
+						if o[2] = 1 then
+							gbNoise = 1
+							if target = TARGET_GBC then
+								maxOctave[4] = 5
+							end if
+						elsif o[2] = 0 then
+							gbNoise = 0
+							if target = TARGET_GBC then
+								maxOctave[4] = 11
+							end if
+						else
+							WARNING("Expected 0 or 1, defaulting to 0: " & s, lineNum)
+						end if
+					else
+						ERROR("Expected 0 or 1: " & s, lineNum)
+					end if
+					
+				elsif equal(s, "EN-REV") then
+					s = get_string()
+					o = value(s)
+					if o[1] = GET_SUCCESS then
+						if o[2] = 1 then
+							enRev = 1
+							if target = TARGET_C64 or target = TARGET_AT8 then
+								ERROR("#EN-REV 1 is not supported for this target", lineNum)
+							end if
+						elsif o[2] = 0 then
+							enRev = 0
+						else
+							WARNING("Expected 0 or 1, defaulting to 0: " & s, lineNum)
+						end if
+					else
+						ERROR("Expected 0 or 1: " & s, lineNum)
+					end if
+
+				elsif equal(s, "OCTAVE-REV") then
+					s = get_string()
+					o = value(s)
+					if o[1] = GET_SUCCESS then
+						if o[2] = 1 then
+							octaveRev = -1
+						elsif o[2] = 0 then
+						else
+							WARNING("Expected 0 or 1, defaulting to 0: " & s, lineNum)
+						end if
+					else
+						ERROR("Expected 0 or 1: " & s, lineNum)
+					end if
+
+				elsif equal(s, "AUTO-BANKSWITCH") then
+					WARNING("Unsupported command: AUTO-BANKSWITCH", lineNum)
+					s = get_string() 
+
+				else
+					ERROR("Unknown command: " & s, lineNum)
+				end if
+
+
+			elsif n = '@' then
+				write_note(1)
+				m = getch()
+				if m = '@' then
+					s = "@" & get_numeric_string()
+				elsif is_numeric(m) then
+					ungetch()
+					s = get_numeric_string()
+				else
+					ungetch()
+					s = get_alpha_string()
+					s &= get_numeric_string()
+				end if
+
+				if length(s) then
+					if s[1] = '@' then
+						o = value(substr(s, 2, length(s)))
+						if o[1] = GET_SUCCESS then
+							idx = assoc_find_key(dutyMacros, o[2]) 
+							numChannels = 0
+							for i = 1 to length(supportedChannels) do
+								if activeChannels[i] then
+									numChannels += 1
+									if supportsDutyChange[i] then
+										s = assoc_get_extra_data(dutyMacros, o[2])
+										idx = or_bits(idx, s[1] * #80)
+										ADD_CMD(i, {CMD_DUTMAC, idx})
+										dutyMacros = assoc_reference(dutyMacros, o[2])
+										usesEffect[i][USES_DM] = 1
+									else
+										WARNING("Unsupported command for channel " &
+											supportedChannels[i] & ": @@", lineNum)
+									end if
+								end if
+							end for
+							if numChannels = 0 then
+								WARNING("Use of @@ with no channels active", lineNum)
+							end if
+						else
+							ERROR("Expected a number: " & s, lineNum)
+						end if
+					else
+						o = value(s)
+						-- Duty cycle macro definition
+						if o[1] = GET_SUCCESS then
+							idx = assoc_find_key(dutyMacros, o[2]) 
+							if sum(activeChannels) = 0 then
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											if length(t[LIST_MAIN]) or length(t[LIST_LOOP]) then
+												dutyMacros = assoc_append(dutyMacros, o[2], t)
+												dutyMacros = assoc_insert_extra_data(dutyMacros, o[2], get_effect_frequency())
+											else
+												ERROR("Empty sequence", lineNum)
+											end if
+										else
+											ERROR("Syntax error", lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								numChannels = 0
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										numChannels += 1
+										if o[2] >= 0 and o[2] <= supportsDutyChange[i] then
+											ADD_CMD(i, {or_bits(CMD_DUTY, o[2])})
+										else
+											if supportsDutyChange[i] = -1 then
+												WARNING("Unsupported command for channel "& 
+													supportedChannels[i] & ": @", lineNum)
+											else
+												ERROR("@ out of range: " & s, lineNum)
+											end if
+										end if
+									end if
+								end for
+								if numChannels = 0 then
+									WARNING("Use of @ with no channels active", lineNum)
+								end if
+							end if
+
+						-- Pan macro definition
+						elsif equal(substr(s, 1, 2), "CS") then
+							o = value(substr(s, 3, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(panMacros, o[2])
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											if length(t[LIST_MAIN]) or length(t[LIST_LOOP]) then
+												if in_range(t[LIST_MAIN] & t[LIST_LOOP], -63, 63) or target = TARGET_PCE then
+													panMacros = assoc_append(panMacros, o[2], t)
+													panMacros = assoc_insert_extra_data(panMacros, o[2], get_effect_frequency())
+												else
+													ERROR("Value of out range (allowed: -63-63): " & sprint_list(t), lineNum)
+												end if
+											else
+												ERROR("Empty sequence", lineNum)
+											end if
+										else
+											ERROR("Bad CS: " & t, lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if			
+							
+						-- Arpeggio definition
+						elsif equal(substr(s, 1, 2), "EN") then
+							o = value(substr(s, 3, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(arpeggios, o[2])
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											if length(t[LIST_MAIN]) or length(t[LIST_LOOP]) then
+												if in_range(t[LIST_MAIN] & t[LIST_LOOP], -63, 63) then
+													arpeggios = assoc_append(arpeggios, o[2], t)
+													arpeggios = assoc_insert_extra_data(arpeggios, o[2], get_effect_frequency())
+												else
+													ERROR("Value of out range (allowed: -63-63): " & sprint_list(t), lineNum)
+												end if
+											else
+												ERROR("Empty sequence", lineNum)
+											end if
+										else
+											ERROR("Bad EN: " & t, lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if						
+
+						-- Feedback macro definition
+						elsif equal(substr(s, 1, 3), "FBM") then
+							o = value(substr(s, 4, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(feedbackMacros, o[2])
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											if length(t[LIST_MAIN]) or length(t[LIST_LOOP]) then
+												if in_range(t[LIST_MAIN] & t[LIST_LOOP], 0, 7) then
+													feedbackMacros = assoc_append(feedbackMacros, o[2], t)
+													feedbackMacros = assoc_insert_extra_data(feedbackMacros, o[2], get_effect_frequency())
+												else
+													ERROR("Value of out range (allowed: 0-7): " & sprint_list(t), lineNum)
+												end if
+											else
+												ERROR("Empty sequence", lineNum)
+											end if
+										else
+											ERROR("Bad FBM: " & t, lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if			
+							
+						-- Vibrato definition
+						elsif equal(substr(s, 1, 2), "MP") then
+							o = value(substr(s, 3, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(vibratos, o[2])
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											if length(t[LIST_MAIN]) = 3 and length(t[LIST_LOOP]) = 0 then
+												if in_range(t[LIST_MAIN], {0, 1, 0}, {127, 127, 63}) then
+													vibratos = assoc_append(vibratos, o[2], t)
+													vibratos = assoc_insert_extra_data(vibratos, o[2], get_effect_frequency())
+												else
+													ERROR("Value of out range: " & sprint_list(t), lineNum)
+												end if
+											else
+												ERROR("Bad MP: " & sprint_list(t), lineNum)
+											end if
+										else
+											ERROR("Bad MP: " & t, lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if						
+
+						-- Amplitude/frequeqncy modulator
+						elsif equal(substr(s, 1, 3), "MOD") then
+							o = value(substr(s, 4, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(mods, o[2])
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											if target = TARGET_SMD then
+												if length(t[LIST_MAIN]) = 3 and length(t[LIST_LOOP]) = 0 then
+													if in_range(t[LIST_MAIN], {0, 0, 0}, {7, 7, 3}) then
+														mods = assoc_append(mods, o[2], t)
+													else
+														ERROR("Value of out range: " & sprint_list(t), lineNum)
+													end if
+												else
+													ERROR("Bad MOD, expected 3 parameters: " & sprint_list(t), lineNum)
+												end if
+											elsif target = TARGET_CPS or target = TARGET_X68 then
+												if length(t[LIST_MAIN]) = 6 and length(t[LIST_LOOP]) = 0 then
+													if in_range(t[LIST_MAIN], {0, 0, 0, 0, 0, 0}, {255, 127, 127, 3, 7, 3}) then
+														mods = assoc_append(mods, o[2], t)
+													else
+														ERROR("Value of out range: " & sprint_list(t), lineNum)
+													end if
+												else
+													ERROR("Bad MOD, expected 6 parameters: " & sprint_list(t), lineNum)
+												end if
+											elsif target = TARGET_PCE then
+												if length(t[LIST_MAIN]) = 2 and length(t[LIST_LOOP]) = 0 then
+													if in_range(t[LIST_MAIN], {0, 0}, {255, 3}) then
+														mods = assoc_append(mods, o[2], t)
+													else
+														ERROR("Value of out range: " & sprint_list(t), lineNum)
+													end if
+												else
+													ERROR("Bad MOD, expected 2 parameters: " & sprint_list(t), lineNum)
+												end if											
+											else
+												mods = assoc_append(mods, o[2], {})
+											end if
+										else
+											ERROR("Bad MOD: " & t, lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if						
+
+						-- Filter definition
+						elsif equal(substr(s, 1, 2), "FT") then
+							o = value(substr(s, 3, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(filters, o[2])
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											if target = TARGET_C64 then
+												if length(t[LIST_MAIN]) = 3 and length(t[LIST_LOOP]) = 0 then
+													if in_range(t[LIST_MAIN], {0, 0, 0}, {3, 2047, 15}) then
+														filters = assoc_append(filters, o[2], t)
+													end if
+												end if
+								
+											else
+												filters = assoc_append(filters, o[2], {})
+											end if
+										else
+											ERROR("Bad FT: " & t, lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if		
+							
+						-- Pitch macro definition
+						elsif equal(substr(s, 1, 2), "EP") then
+							o = value(substr(s, 3, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(pitchMacros, o[2]) 
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											pitchMacros = assoc_append(pitchMacros, o[2], t)
+											pitchMacros = assoc_insert_extra_data(pitchMacros, o[2], get_effect_frequency())
+										else
+											ERROR("Bad EP: " & t, lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if		
+
+						-- Portamento definition
+						elsif equal(substr(s, 1, 2), "PT") then
+							o = value(substr(s, 3, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(portamentos, o[2])
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											if length(t[LIST_MAIN]) = 2 and length(t[LIST_LOOP]) = 0 then
+												if in_range(t[LIST_MAIN], {0, 1}, {127, 127}) then
+													portamentos = assoc_append(portamentos, o[2], t)
+												else
+													ERROR("Value out of range: " & sprint_list(t), lineNum)
+												end if
+											else
+												ERROR("Bad PT: " & sprint_list(t), lineNum)
+											end if
+										else
+											ERROR("Bad PT: " & t, lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if		
+
+						-- Waveform definition (@WT / @WTM)
+						elsif equal(substr(s, 1, 2), "WT") then
+							if equal(substr(s, 3, 3), "M") then
+								wtType = 1
+								o = value(substr(s, 4, length(s)))
+							else
+								wtType = 0
+								o = value(substr(s, 3, length(s)))
+							end if
+							if o[1] = GET_SUCCESS then
+								if wtType = 0 then
+									idx = assoc_find_key(waveforms, o[2])
+								else
+									idx = assoc_find_key(waveformMacros, o[2])
+								end if
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										if wtType = 1 then
+											allow_wt_list()
+										end if
+										t = get_list()
+										if sum(supportsWave) != 0 then
+											if t[1] = GET_SUCCESS then
+												if wtType = 0 then	-- Regular @WT
+													if length(t[LIST_LOOP]) = 0 then
+														--? t
+														--if length(t[2]) > 1 and sequence(t[2][1]) then
+														--	t = convert_wav(t[2][1],t[2][2],t[2][3])
+														--	t = {}
+														--else
+															if in_range(t[LIST_MAIN], minWavSample, maxWavSample) then
+																if length(t[LIST_MAIN]) < minWavLength then
+																	WARNING("Padding waveform with zeroes", lineNum)
+																	t[LIST_MAIN] &= repeat(0, minWavLength - length(t[2]))
+																elsif length(t[LIST_MAIN]) > maxWavLength then
+																	WARNING("Truncating waveform", lineNum)
+																	t[LIST_MAIN] = t[LIST_MAIN][1..maxWavLength]
+																end if
+																--waveforms[2] = append(waveforms[2], t[2])
+																waveforms = assoc_append(waveforms, o[2], t)
+															else
+																ERROR("Waveform data out of range: " & sprint_list(t), lineNum)
+															end if
+														--end if
+													else
+														ERROR("Loops not supported in waveform: " & sprint_list(t), lineNum)
+													end if
+												else			-- @WTM
+													u = {0,{},{}}
+													for j = 2 to 3 do
+														for i = 1 to length(t[j]) do
+															if and_bits(i, 1) then
+																if sequence(t[j][i]) then
+																	if length(t[j][i]) = 4 and t[j][i][1] = -1 then
+																		u[j] &= t[j][i][4]
+																		if assoc_find_key(waveforms, t[j][i][4]) >= 0 then
+																			waveforms = assoc_reference(waveforms, t[j][i][4])
+																			t[j][i] = assoc_find_key(waveforms, t[j][i][4])
+																		else
+																			ERROR(sprintf("WT%d has not been declared", t[j][i][4]), lineNum)
+																		end if
+																	else
+																		? i
+																		ERROR("Expected WT<num>, got " & t[j][i], lineNum)
+																	end if
+																else
+																	--? i
+																	puts(1, sprint_list(t) & "\n")
+																	ERROR("Expected WT<num>, got " & t[j][i], lineNum)
+																end if
+															else
+																u[j] &= t[j][i]
+																if not in_range(t[j][i], 1, 127) then
+																	ERROR(sprintf("Expected a number in the range 1..127, got %d", t[j][i]), lineNum)
+																end if
+															end if
+														end for
+													end for
+													waveformMacros = assoc_append(waveformMacros, o[2], t)
+													waveformMacros = assoc_insert_extra_data(waveformMacros, o[2], u)
+												end if
+											else
+												ERROR("Bad waveform: " & t, lineNum)
+											end if
+										else
+											WARNING("Unsupported command for this target: @WT", lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if		
+
+						elsif equal(substr(s, 1, 4), "XPCM") then
+							o = value(substr(s, 5, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(pcms, o[2])
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if sum(supportsPCM) != 0 then
+											if t[1] = GET_SUCCESS then
+												if length(t[3]) = 0 then
+													if length(t[2]) > 1 and sequence(t[2][1]) then
+														if not find(':', t[2][1]) and t[2][1][1] != '\\' then
+															t[2][1] = workDir & t[2][1]
+														end if
+														if length(t[2]) > 2 then
+															t[3] = convert_wav(t[2][1], t[2][2], t[2][3])
+														else
+															t[3] = convert_wav(t[2][1], t[2][2], 100)
+														end if
+														pcms = assoc_append(pcms, o[2], t)
+														t = {}
+													else
+														ERROR("Bad XPCM: " & sprint_list(t), lineNum)
+													end if
+												else
+													ERROR("Loops not supported in XPCM: " & sprint_list(t), lineNum)
+												end if
+											else
+												ERROR("Bad XPCM: " & t, lineNum)
+											end if
+										else
+											WARNING("Unsupported command for this target: @XPCM", lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if		
+						
+						elsif equal(substr(s, 1, 4), "ADSR") then
+							o = value(substr(s, 5, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(adsrs, o[2])
+								if idx <= 0 then
+									t = get_string()
+									if equal(t, "=") then
+										t = get_list()
+										if t[1] = GET_SUCCESS then
+											if length(t[3]) = 0 then
+												if length(t[2]) = adsrLen then
+													if in_range(t[2], 0, adsrMax) then
+														adsrs = assoc_append(adsrs, o[2], t)
+													else
+														ERROR("ADSR parameters out of range: " & sprint_list(t), lineNum)
+													end if
+												else
+													ERROR("Bad number of ADSR parameters: " & sprint_list(t), lineNum)
+												end if
+											else
+												ERROR("Bad ADSR: " & sprint_list(t), lineNum)
+											end if
+										else
+											ERROR("Bad ADSR: " & t, lineNum)
+										end if
+									else
+										ERROR("Expected \'=\'", lineNum)
+									end if
+								else
+									ERROR("Redefinition of @" & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if
+							
+	
+						elsif equal(substr(s, 1, 2), "te") then
+							t = substr(s, 3, length(s))
+							m = getch()
+							if m = ',' then
+								o = {value(t), value(get_numeric_string())}
+							else
+								ungetch()
+								o = {value(t), {GET_SUCCESS, 7}}
+							end if
+								
+							if o[1][1] = GET_SUCCESS and o[2][1] = GET_SUCCESS then
+								write_note(1)
+								if sum(activeChannels) = 0 then
+									WARNING("Trying to set tone envelope with no active channels", lineNum)
+								elsif integer(o[1][2]) and integer(o[2][2]) then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											if supportsHwToneEnv[i] then
+												if o[1][2] >= -supportsHwToneEnv[i] and
+												   o[1][2] <=  supportsHwToneEnv[i] then
+													if target = TARGET_GBC then
+														if o[1][2] < 0 then
+															o[1][2] = xor_bits(abs(o[1][2]) - 1, 7) * 16 + 8 + and_bits(o[2][2], 7)
+														elsif o[1][2] > 0 then
+															o[1][2] = xor_bits(o[1][2] - 1, 7) * 16 + and_bits(o[2][2], 7)
+														else
+															o[1][2] = 8
+														end if
+													elsif target = TARGET_AST or target = TARGET_KSS or target = TARGET_SMS or target = TARGET_CPC then
+														o[1][2] = abs(o[1][2])
+													end if
+													ADD_CMD(i, {CMD_HWTE, o[1][2]})
+												else
+													ERROR("Tone envelope number out of range: " & s, lineNum)
+												end if
+											else
+												WARNING("Unsupported command for channel " & supportedChannels[i] & ": @" & s, lineNum)
+											end if
+										end if
+									end for
+								else
+									ERROR("Bad tone envelope: " & s, lineNum)
+								end if
+							else
+								ERROR("Bad tone envelope: " & s, lineNum)
+							end if
+
+						elsif equal(substr(s, 1, 2), "es") then
+							o = value(substr(s, 3, length(s)))
+							if o[1] = GET_SUCCESS then
+								write_note(1)
+								if sum(activeChannels) = 0 then
+									WARNING("Trying to set envelope speed with no active channels", lineNum)
+								elsif integer(o[2]) and in_range(o[2], 0, 65535) then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											if target = TARGET_AST or target = TARGET_KSS or target = TARGET_CPC then
+												o[2] = xor_bits(o[2], #FFFF)
+												songs[songNum][i] &= {CMD_HWES, and_bits(o[2], #FF), floor(o[2] / #100)}
+											else
+												WARNING("Unsupported command for this target: es", lineNum)
+											end if
+										end if
+									end for
+								else
+									ERROR("Bad envelope speed: " & s, lineNum)
+								end if
+							else
+								ERROR("Bad tone envelope: " & s, lineNum)
+							end if
+							
+						elsif equal(substr(s, 1, 2), "ve") then
+							o = value(substr(s, 3, length(s)))
+							if o[1] = GET_SUCCESS then
+								write_note(1)
+								m = 0
+								if target = TARGET_GBC then
+									if o[2] < 0 then
+										o[2] = xor_bits(abs(o[2]) - 1, 7)
+									elsif o[2] > 0 then
+										o[2] = xor_bits(o[2] - 1, 7)
+										m = 8
+									else
+										o[2] = 0
+									end if
+								end if
+								if sum(activeChannels) = 0 then
+									WARNING("Trying to set volume envelope with no active channels", lineNum)
+								elsif integer(o[2]) then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											if supportsHwVolEnv[i] then
+												if o[2] >= -supportsHwVolEnv[i] and o[2] <= supportsHwVolEnv[i] then
+													if target = TARGET_SMS or target = TARGET_KSS then
+														o[2] = xor_bits(abs(o[2]), supportsHwVolEnv[i])
+													elsif target = TARGET_SFC then
+														if o[2] = -2 then
+															o[2] =  #A0
+														elsif o[2] = -1 then
+															o[2] = #80
+														elsif o[2] = 1 then
+															o[2] = #C0
+														elsif o[2] = 2 then
+															o[2] = #E0
+														end if
+													end if
+													ADD_CMD(i, {CMD_HWVE, or_bits(o[2], m)})
+												else
+													ERROR("Volume envelope value out of range: " & substr(s, 3, length(s)), lineNum)
+												end if
+											else
+												WARNING("Unsupported command for channel " & supportedChannels[i] & ": @" & s, lineNum)
+											end if
+										end if
+									end for
+								else
+									ERROR("Bad volume envelope: " & s, lineNum)
+								end if
+							else
+								ERROR("Bad volume envelope: " & s, lineNum)
+							end if
+
+						-- Volume macro definition
+						elsif equal(substr(s, 1, 1), "v") then
+							o = value(substr(s, 2, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(volumeMacros, o[2])
+								if sum(activeChannels) = 0 then
+									if length(patName) then
+									else
+										if idx <= 0 then
+											t = get_string()
+											if equal(t, "=") then
+												t = get_list()
+												if t[1] = GET_SUCCESS then
+													if in_range(t[LIST_MAIN], minVolume, max(maxVolume)) and
+													   in_range(t[LIST_LOOP], minVolume, max(maxVolume)) then
+														volumeMacros = assoc_append(volumeMacros, o[2], t)
+														volumeMacros = assoc_insert_extra_data(volumeMacros, o[2], get_effect_frequency())
+													else
+														ERROR("Value out of range: " & sprint_list(t), lineNum)
+													end if
+												else
+													ERROR("Bad volume macro: " & t, lineNum)
+												end if
+											else
+												ERROR("Expected \'=\'", lineNum)
+											end if
+										else
+											ERROR("Redefinition of @" & s, lineNum)
+										end if
+									end if
+								else
+									if idx <= 0 then
+										ERROR("Undefined macro: @" & s, lineNum)
+									else
+										for i = 1 to length(supportedChannels) do
+											if activeChannels[i] then
+												if not is_empty_list(volumeMacros[ASSOC_DATA][idx]) then
+													s = assoc_get_extra_data(volumeMacros, o[2])
+													if s[1] = 0 then
+														ADD_CMD(i, {CMD_VOLMAC, idx})
+													else
+														ADD_CMD(i, {CMD_VOLMAC, or_bits(idx, #80)})
+													end if
+													volumeMacros = assoc_reference(volumeMacros, o[2])
+												end if
+											end if
+										end for
+									end if
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if		
+							
+
+						-- Pulse width macro
+						elsif equal(substr(s, 1, 2), "pw") then
+							o = value(substr(s, 3, length(s)))
+							if o[1] = GET_SUCCESS then
+								idx = assoc_find_key(pulseMacros, o[2])
+								if sum(activeChannels) = 0 then
+									if length(patName) then
+									else
+										if idx <= 0 then
+											t = get_string()
+											if equal(t, "=") then
+												t = get_list()
+												if t[1] = GET_SUCCESS then
+													if in_range(t[2], 0, 15) and
+													   in_range(t[3], 0, 15) then
+														pulseMacros = assoc_append(pulseMacros, o[2], t)
+														pulseMacros = assoc_insert_extra_data(pulseMacros, o[2], get_effect_frequency())
+													else
+														ERROR("Value out of range: " & sprint_list(t), lineNum)
+													end if
+												else
+													ERROR("Bad pulse width macro: " & t, lineNum)
+												end if
+											else
+												ERROR("Expected \'=\'", lineNum)
+											end if
+										else
+											ERROR("Redefinition of @" & s, lineNum)
+										end if
+									end if
+								else
+									if idx <= 0 then
+										ERROR("Undefined macro: @" & s, lineNum)
+									else
+										for i = 1 to length(supportedChannels) do
+											if activeChannels[i] then
+												if not is_empty_list(pulseMacros[2][idx]) then
+													ADD_CMD(i, {CMD_PULMAC, idx})
+													pulseMacros = assoc_reference(pulseMacros, o[2])
+													usesEffect[i][USES_PM] = 1
+												end if
+											end if
+										end for
+									end if
+								end if
+							else
+								ERROR("Syntax error: @" & s, lineNum)
+							end if		
+
+						elsif equal(substr(s, 1, 1), "q") then
+							o = value(substr(s, 2, length(s)))
+							if o[1] = GET_SUCCESS then
+								write_note(1)
+								if sum(activeChannels) = 0 then
+									WARNING("Trying to set cutoff with no active channels", lineNum)
+								elsif integer(o[2]) and o[2] >= 0 and o[2] <= 15 then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											currentCutoff[i][CUTOFF_VALUE] = o[2]
+											currentCutoff[i][CUTOFF_TYPE] = CT_FRAMES
+											s = note_length(i, currentLength[i])
+											if s[1] != currentNoteFrames[i][1] then
+												currentNoteFrames[i] = s
+												ADD_CMD(i, {CMD_LEN})
+												write_length(i)
+											end if											
+										end if
+									end for
+								elsif integer(o[2]) and o[2] < 0 and o[2] >= -15 then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											currentCutoff[i][CUTOFF_VALUE] = -o[2]
+											currentCutoff[i][CUTOFF_TYPE] = CT_NEG_FRAMES
+											s = note_length(i, currentLength[i])
+											if s[1] != currentNoteFrames[i][1] then
+												currentNoteFrames[i] = s
+												ADD_CMD(i, {CMD_LEN})
+												write_length(i)
+											end if											
+										end if
+									end for
+								else
+									ERROR("Bad cutoff: " & s, lineNum)
+								end if
+							else
+								ERROR("Bad cutoff: " & s, lineNum)
+							end if
+				
+						else
+							ERROR("Syntax error: @" & s, lineNum)
+						end if
+					end if
+				else
+					ERROR("Unexpected end of file", lineNum)
+				end if
+
+			-- Pattern definition/invokation
+			elsif n = '\\' then
+				write_note(1)
+				s = get_string_in_range(ALPHANUM)
+				skip_whitespace()
+				m = getch()
+				if length(s) then
+					pattern = {}
+					if m = '(' then
+						if sum(activeChannels) = 0 then
+							ERROR("Pattern invokation with no active channels", lineNum)
+						else
+							if activeChannels[$] = 1 then
+								ERROR("Pattern invokation found inside pattern", lineNum)
+							else
+								t = get_string_until(")")
+								if length(t) then
+								end if
+								skip_whitespace()
+								n = getch()
+								if n != ')' then
+									ERROR("Expected ), got " & n, lineNum)
+								end if
+
+								-- Pattern invokation
+								idx = find(s, patterns[1])
+								if idx > 0 then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											ADD_CMD(i, {CMD_JSR, idx - 1})
+											hasAnyNote[i] = or_bits(hasAnyNote[i], patterns[3][idx])
+											usesEffect[i] = or_bits(usesEffect[i], {1,1,1,1,1,1})
+											songLen[songNum][i] += patterns[4][idx]
+										end if
+									end for
+								else
+									ERROR("Undefined pattern: " & s, lineNum)
+								end if
+							end if
+						end if
+					elsif m = '{' then
+						if sum(activeChannels) = 0 then
+							patName = s
+							activeChannels[$] = 1
+							songs[songNum][length(songs[songNum])] = {}
+						else
+							ERROR("Pattern definitions are not allowed while channels are active", lineNum)
+						end if
+					else
+						ERROR("Expected ( or {, got " & m, lineNum)
+					end if
+				else
+					ERROR("Syntax error", lineNum)
+				end if
+			
+			elsif n = '(' then
+				if length(patName) then
+					ERROR("Found ( inside pattern", lineNum)
+				elsif not keepChannelsActive then
+					if sum(activeChannels) > activeChannels[$] then
+						keepChannelsActive = 1
+					else
+						ERROR("( requires at least one active channel", lineNum)
+					end if
+				else
+					ERROR("Unexpected (", lineNum)
+				end if
+				
+			elsif n = ')' then
+				if keepChannelsActive then
+					keepChannelsActive = 0
+				else
+					ERROR("Unexpected )", lineNum)
+				end if
+			
+			
+			-- Macro definition/invokation
+			elsif n = '$' then
+				write_note(1)
+				s = get_string_in_range(ALPHANUM)
+				skip_whitespace()
+				m = getch()
+				if length(s) then
+					macro = {}
+					n = 1
+					if m = '(' then
+						if sum(activeChannels) = 0 then
+							l = 1
+							-- Read default parameters
+							while 1 do
+								t = get_string_until(",)\t " & {13,10})
+								macro = append(macro, {2, t})
+								skip_whitespace()
+								n = getch()
+								if n = -1 or n = ')' then
+									exit
+								end if
+								l += 1
+							end while
+							n = 2
+						else
+							-- Macro invokation
+							while 1 do
+								t = get_string_until(",)\t " & {13,10})
+								if length(t) then
+									macro = append(macro, t)
+								end if
+								skip_whitespace()
+								n = getch()
+								if n = -1 or n = ')' then
+									exit
+								end if
+							end while
+							u = ""
+							defaultParm = {}
+							idx = find(s, macros[1])
+							if idx > 0 then
+								-- Expand the macro
+								for i = 1 to length(macros[2][idx]) do
+									if macros[2][idx][i][1] = 0 then
+										-- This character should be appended as-is
+										u &= macros[2][idx][i][2]
+									elsif macros[2][idx][i][1] = 1 then
+										-- This is an argument refernce
+										if macros[2][idx][i][2] > 0 and
+										   macros[2][idx][i][2] <= length(macro) then
+											u &= macro[macros[2][idx][i][2]]
+										elsif macros[2][idx][i][2] > 0 and
+										      macros[2][idx][i][2] <= length(defaultParm) then
+											u &= defaultParm[macros[2][idx][i][2]]
+										end if
+									elsif macros[2][idx][i][1] = 2 then
+										defaultParm = append(defaultParm, macros[2][idx][i][2])
+									end if
+								end for
+								if fileDataPos <= length(fileData) then
+									fileData = fileData[1..fileDataPos-1] & u & fileData[fileDataPos..length(fileData)]
+								else
+									fileData &= u
+								end if
+
+								numChannels = 0
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										numChannels += 1
+									end if
+								end for
+								if numChannels = 0 then
+									ERROR("Trying to invoke a macro with no channels active", lineNum)
+								end if
+							else
+								ERROR("Undefined macro: " & s, lineNum)
+							end if
+							n = 0
+						end if
+					end if
+
+					if n = 2 then						
+						skip_whitespace()
+						m = getch()
+					end if
+					
+					-- Macro definition
+					if m = '{' and n > 0 then
+						idx = find(s, macros[1])
+						if idx <= 0 then
+							if sum(activeChannels) = 0 then
+								while n != '}' do
+									n = getch()
+									if n = '%' then
+										t = get_numeric_string()
+										o = value(t)
+										if o[1] = GET_SUCCESS then
+											macro = append(macro, {1, o[2]})
+										else
+											ERROR("Syntax error: " & t, lineNum)
+										end if
+										n = getch()
+										if n != '%' then
+											ERROR("Missing %%", lineNum)
+										end if
+									elsif n = '}' or n = -1 then
+										exit
+									elsif n = 10 then
+										lineNum += 1
+									elsif n != 13 then
+										macro = append(macro, {0, n})
+									end if
+								end while
+							else
+								ERROR("Macro definitions are not allowed while channels are active", lineNum)
+							end if
+							macros[1] = append(macros[1], s)
+							macros[2] = append(macros[2], macro)
+						else
+							ERROR("Macro already defined: " & s, lineNum)
+						end if
+
+					elsif n then
+						ERROR("Syntax error: " & m, lineNum)
+					end if
+				else
+					ERROR("Expected an identifier following $", lineNum)
+				end if
+
+			-- Callback
+			elsif n = '!' then
+				write_note(1)
+				s = get_string_until("(\t " & {13,10})
+				skip_whitespace()
+				n = getch()
+				if n = '(' then
+					idx = find(s, callbacks)
+					if idx <= 0 then
+						callbacks = append(callbacks, s)
+						idx = length(callbacks)
+					end if
+
+					t = get_string_until(")\t " & {13,10})
+					o = value(t)
+					if o[1] = GET_SUCCESS then
+						if o[1] = 0 then
+							-- Never (Off)
+							numChannels = 0
+							for i = 1 to length(supportedChannels) do
+								if activeChannels[i] then
+									numChannels += 1
+									ADD_CMD(i, {CMD_CBOFF})
+								end if
+							end for
+							if numChannels = 0 then
+								ERROR("Trying to set a callback with no channels active", lineNum)
+							end if
+						elsif o[1] = 1 then
+							-- Once
+							numChannels = 0
+							for i = 1 to length(supportedChannels) do
+								if activeChannels[i] then
+									numChannels += 1
+									ADD_CMD(i, {CMD_CBONCE, idx - 1})
+								end if
+							end for
+							if numChannels = 0 then
+								ERROR("Trying to set a callback with no channels active", lineNum)
+							end if
+						else
+							ERROR("Bad callback frequency: " & s, lineNum)
+						end if
+					elsif equal(t, "EVERY-NOTE") then
+						numChannels = 0
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								numChannels += 1
+								ADD_CMD(i, {CMD_CBEVNT, idx - 1})
+							end if
+						end for
+						if numChannels = 0 then
+							ERROR("Trying to set a callback with no channels active", lineNum)
+						end if
+
+					elsif equal(t, "EVERY-VOL-CHANGE") then
+						numChannels = 0
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								numChannels += 1
+								ADD_CMD(i, {CMD_CBEVVC, idx - 1})
+							end if
+						end for
+						if numChannels = 0 then
+							ERROR("Trying to set a callback with no channels active", lineNum)
+						end if
+
+					elsif equal(t, "EVERY-VOL-MIN") then
+						numChannels = 0
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								numChannels += 1
+								ADD_CMD(i, {CMD_CBEVVM, idx - 1})
+							end if
+						end for
+						if numChannels = 0 then
+							ERROR("Trying to set a callback with no channels active", lineNum)
+						end if
+
+					elsif equal(t, "EVERY-OCT-CHANGE") then
+						numChannels = 0
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								numChannels += 1
+								ADD_CMD(i, {CMD_CBEVOC, idx - 1})
+							end if
+						end for
+						if numChannels = 0 then
+							ERROR("Trying to set a callback with no channels active", lineNum)
+						end if
+
+					else
+						ERROR("Bad callback frequency: " & s, lineNum)
+					end if
+					n = getch()
+					if n != ')' then
+						ERROR("Expected ): " & n, lineNum)
+					end if
+				else
+					ERROR("Expected (: " & n, lineNum)
+				end if
+
+			-- Multiline comment
+			elsif n = '/' then
+				write_note(1)
+				m = getch()
+				if m = '*' then
+					while n != -1 do
+						n = getch()
+						if n = '*' then
+							m = getch()
+							if m = '/' then
+								exit
+							else
+								ungetch()
+							end if
+						elsif n = 10 then
+							lineNum += 1
+						end if
+					end while
+				else
+					ERROR("Syntax error: " & n, lineNum)
+				end if
+
+			elsif n = '[' then
+				write_note(1)
+				if sum(activeChannels) = 0 then
+				else
+					for i = 1 to length(supportedChannels) do
+						if activeChannels[i] then
+							loopStack[i] = push(loopStack[i], {length(songs[songNum][i]) + 2, songLen[songNum][i], -1, -1, -1})
+							if length(loopStack[i]) > maxLoopDepth then
+								ERROR(sprintf("Maximum nesting level for loops is %d", maxLoopDepth), lineNum)
+							end if
+							songs[songNum][i] &= {CMD_LOPCNT, 0}
+						end if
+					end for
+				end if
+			
+			elsif n = '|' then
+				write_note(1)
+				if sum(activeChannels) = 0 then
+				else
+					for i = 1 to length(supportedChannels) do
+						if activeChannels[i] then
+							if length(loopStack[i]) then
+								s = loopStack[i][length(loopStack[i])]
+								if s[4] != -1 then
+									ERROR("Only one | allowed per repeat loop", lineNum)
+								end if
+								s[4] = songLen[songNum][i]
+								s[5] = length(songs[songNum][i]) + 2
+								songs[songNum][i] &= {CMD_J1, 0, 0}
+								loopStack[i][length(loopStack[i])] = s
+							else
+								ERROR("Unexpected character: |", lineNum)
+							end if
+						end if
+					end for
+				end if
+				
+			elsif n = ']' then
+				write_note(1)
+				t = get_numeric_string()
+				o = value(t)
+				for i = 1 to length(supportedChannels) do
+					if activeChannels[i] then
+						s = pop(loopStack[i])
+						loopStack[i] = s[2]
+						if s[1][1] != 0 then
+							if o[1] = GET_SUCCESS then
+								if o[2] > 0 then
+									songs[songNum][i][s[1][1]] = o[2]	-- Loop count
+									songs[songNum][i] &= {CMD_DJNZ, and_bits(s[1][1], #FF), floor(s[1][1] / #100)}
+									if s[1][4] = -1 then
+										songLen[songNum][i] += (songLen[songNum][i] - s[1][2]) * (o[2] - 1)
+									else
+										if (o[2] < 2) then
+											ERROR("Loop count must be >= 2 when | is used", lineNum)
+										end if
+										songLen[songNum][i] += (songLen[songNum][i] - s[1][2]) * (o[2] - 2) +
+										                       (s[1][4] - s[1][2])
+										songs[songNum][i][s[1][5]] = and_bits(length(songs[songNum][i]), #FF)
+										songs[songNum][i][s[1][5] + 1] = floor(length(songs[songNum][i]) / #100)
+									end if
+								else
+									ERROR("Bad loop count: " & t, lineNum)
+								end if
+							else
+								ERROR("Expected a loop count: " & t, lineNum)
+							end if
+						else
+							ERROR("Use of ] with no matching [ on channel " & supportedChannels[i], lineNum)
+						end if
+					end if
+				end for
+
+			-- Octave up/down		
+			elsif n = '>' or n = '<' then
+				write_note(1)
+				m = 1
+				if n = '<' then
+					m = -1
+				end if
+				if sum(activeChannels) = 0 then
+					WARNING("Trying to change octave with no active channels: " & n, lineNum)
+				else
+					for i = 1 to length(supportedChannels) do
+						if activeChannels[i] then
+							if currentOctave[i] + m >= minOctave[i] and
+							   currentOctave[i] + m <= maxOctave[i] then
+								currentOctave[i] += m
+								pendingOctChange[i] = m
+							else
+								ERROR(sprintf("Octave out of range: " & n & " (%d)", currentOctave[i] + m), lineNum)
+							end if
+						end if
+					end for
+				end if
+
+			elsif n = 'k' then
+				write_note(1)
+				s = get_numeric_string()
+				o = value(s)
+				if o[1] = GET_SUCCESS then
+					if sum(activeChannels) = 0 then
+						WARNING("Trying to set length with no active channels", lineNum)
+					elsif integer(o[2]) and in_range(o[2],1,256) then
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								currentLength[i] = o[2]
+								s = note_length(i, currentLength[i])
+								--if s[1] != currentNoteFrames[i][1] then
+									currentNoteFrames[i] = s
+									ADD_CMD(i, {CMD_LEN})
+									write_length(i)
+								--end if
+							end if
+						end for
+					else
+						ERROR("Bad length: " & s, lineNum)
+					end if
+				else
+					ERROR("Bad length: " & s, lineNum)
+				end if
+						
+			elsif n = 'l' then
+				write_note(1)
+				s = get_numeric_string()
+				o = value(s)
+				if o[1] = GET_SUCCESS then
+					if sum(activeChannels) = 0 then
+						WARNING("Trying to set length with no active channels", lineNum)
+					elsif integer(o[2]) and find(o[2], supportedLengths) > 0 then --SUPPORTED_LENGTHS) > 0 then
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								currentLength[i] = 32 / o[2] 
+								s = note_length(i, currentLength[i])
+								--if s[1] != currentNoteFrames[i][1] then
+									currentNoteFrames[i] = s
+									ADD_CMD(i, {CMD_LEN})
+									write_length(i)
+								--end if
+							end if
+						end for
+					else
+						ERROR("Bad length: " & s, lineNum)
+					end if
+				else
+					ERROR("Bad length: " & s, lineNum)
+				end if
+
+			-- Set octave
+			elsif n = 'o' then
+				write_note(0)
+				s = get_numeric_string()
+				o = value(s)
+				if o[1] = GET_SUCCESS then
+					if sum(activeChannels) = 0 then
+						WARNING("Trying to set octave with no active channels", lineNum)
+					elsif integer(o[2]) then 
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								if o[2] >= minOctave[i] and o[2] <= maxOctave[i] then
+									currentOctave[i] = o[2]
+									ADD_CMD(i, {or_bits(CMD_OCTAVE, currentOctave[i])})
+								else
+									ERROR("Octave out of range" & sprintf(" (%d vs [%d,%d])", {o[2], minOctave[i], maxOctave[i]}), lineNum)
+								end if
+							end if
+						end for
+					else
+						ERROR("Bad octave: " & s, lineNum)
+					end if
+				else
+					ERROR("Bad octave: " & s, lineNum)
+				end if
+
+			-- Set cutoff
+			elsif n = 'q' then
+				write_note(1)
+				s = get_numeric_string()
+				o = value(s)
+				if o[1] = GET_SUCCESS then
+					if sum(activeChannels) = 0 then
+						WARNING("Trying to set cutoff with no active channels", lineNum)
+					elsif integer(o[2]) and o[2] >= 0 and o[2] <= 8 then
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								currentCutoff[i][CUTOFF_VALUE] = o[2]
+								currentCutoff[i][CUTOFF_TYPE] = CT_NORMAL
+								s = note_length(i, currentLength[i])
+								if s[1] != currentNoteFrames[i][1] then
+									currentNoteFrames[i] = s
+									ADD_CMD(i, {CMD_LEN})
+									write_length(i)
+								end if
+							end if
+						end for
+					elsif integer(o[2]) and o[2] < 0 and o[2] >= -8 then
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								currentCutoff[i][CUTOFF_VALUE] = -o[2]
+								currentCutoff[i][CUTOFF_TYPE] = CT_NEG
+								s = note_length(i, currentLength[i])
+								if s[1] != currentNoteFrames[i][1] then
+									currentNoteFrames[i] = s
+									ADD_CMD(i, {CMD_LEN})
+									write_length(i)
+								end if
+							end if
+						end for
+					else
+						ERROR("Bad cutoff: " & s, lineNum)
+					end if
+				else
+					ERROR("Bad cutoff: " & s, lineNum)
+				end if
+
+			-- Set tempo
+			elsif n = 't' then
+				write_note(1)
+				s = get_numeric_string()
+				o = value(s)
+				if o[1] = GET_SUCCESS then
+					if sum(activeChannels) = 0 then
+						WARNING("Trying to set tempo with no active channels", lineNum)
+					elsif integer(o[2]) and o[2] >= 0 and o[2] <= maxTempo then
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								currentTempo[i] = o[2]
+							end if
+						end for
+					else
+						ERROR("Bad tempo: " & s, lineNum)
+					end if
+				else
+					ERROR("Bad tempo: " & s, lineNum)
+				end if
+
+			-- Set volume
+			elsif n = 'v' then
+				write_note(1)
+				
+				volType = CMD_VOL2
+				
+				m = getch()
+				if m = '+' then
+					volType = CMD_VOLUP
+					if getch() = '+' then
+						volType = CMD_VOLUPC
+					else
+						ungetch()
+					end if
+					l = 1
+					s = get_numeric_string()
+					if length(s) then
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							l = o[2]
+						end if
+					end if
+				elsif m = '-' then
+					volType = CMD_VOLDN
+					if getch() = '-' then
+						volType = CMD_VOLDNC
+					else
+						ungetch()
+					end if
+					l = 1
+					s = get_numeric_string()
+					if length(s) then
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							l = o[2]
+						end if
+					end if
+				else
+					ungetch()
+					s = get_numeric_string()
+					if length(s) then
+						o = value(s)
+					else
+						ERROR("Expected +, - or a number: " & m, lineNum)
+					end if
+				end if
+
+				if o[1] = GET_SUCCESS then
+					if sum(activeChannels) = 0 then
+						if length(patName) then
+							if integer(o[2]) and o[2] >= minVolume then
+							else
+								ERROR(sprintf("Bad volume: %d", o[2]) , lineNum)
+							end if
+						else
+							WARNING("Trying to set volume with no active channels", lineNum)
+						end if
+					elsif integer(o[2]) and o[2] >= minVolume then
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								if volType = CMD_VOL2 then
+									if o[2] <= maxVolume[i] then
+										currentVolume[i] = o[2]
+										if supportsVolumeChange[i] then
+											l = floor((currentVolume[i] / maxVolume[i]) * machineVolLimit[i])
+											if l <= #0F then
+												ADD_CMD(i, {or_bits(CMD_VOL2, l)})
+											else
+												ADD_CMD(i, {CMD_VOLSET, l})
+											end if
+										else
+											-- TODO: Handle this case (e.g. NES triangle channel)
+										end if
+									else
+										ERROR(sprintf("Bad volume: %d", o[2]), lineNum)
+									end if
+								else
+									if volType = CMD_VOLDN then
+										l = and_bits(-l, #FF)
+										volType = CMD_VOLUP
+									end if
+									if supportsVolumeChange[i] then
+										ADD_CMD(i, {volType, l})
+									end if
+								end if
+							end if
+						end for
+					else
+						ERROR(sprintf("Bad volume: %d", o[2]), lineNum)
+					end if
+				else
+					ERROR("Bad volume: " & s, lineNum)
+				end if
+
+			-- Single line comment
+			elsif n = ';' then
+				write_note(1)
+				while n != -1 do
+					n = getch()
+					if n = 10 then
+						lineNum += 1
+						exit
+					elsif n = 13 then
+						exit
+					else
+					end if
+				end while
+
+
+			-- Reads notes (e.g. c d+ a+4 g-1.. e1^8^32 f&f16&f32)
+			elsif find(n, NOTES) > 0 then
+				if not slur then
+					write_note(0)
+				end if
+
+				dot 	= 0
+				tie 	= 0
+				slur 	= 0
+				hasTie 	= 0
+				hasSlur = 0
+				firstNote = -1
+				len = -1
+				
+				l = 0
+				while n != -1 do
+					if find(n, NOTES) > 0 then
+						if l > 0 and not slur then
+							ungetch()
+							exit
+						end if
+						note = find(n, NOTES)
+					elsif n = '&' then
+						if hasTie then
+							ERROR("Trying to use & and ^ in same expression", lineNum)
+						end if
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] and sequence(tuple[i]) then
+								WARNING("Command ignored inside tuple: &", lineNum)
+							end if
+						end for
+						hasSlur = 1
+						slur = 1
+						note = -1
+					elsif n = '^' then
+						if hasSlur then
+							ERROR("Trying to use & and ^ in same expression", lineNum)
+						end if
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] and sequence(tuple[i]) then
+								WARNING("Command ignored inside tuple: ^", lineNum)
+							end if
+						end for
+						hasTie = 1
+						tie = 1
+					elsif n = '.' then
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] and sequence(tuple[i]) then
+								WARNING("Command ignored inside tuple: .", lineNum)
+							end if
+						end for
+						dot = 1
+					else
+						ungetch()
+						exit
+					end if
+
+					if (find(n, NOTES) > 0 and n != 'r' and n != 's') or (l > 0 and note != -1 and slur) then
+						flatSharp = 0
+						len = -1
+						m = getch()
+						if m = '+' then
+							flatSharp = 1
+							if NOTES[note + flatSharp] != -2 then
+								ERROR("Bad note: " & n & "+", lineNum)
+							end if
+						elsif m = '-' then
+							flatSharp = -1
+							if note + flatSharp < 1 or NOTES[note + flatSharp] != -2 then
+								ERROR("Bad note: " & n & "-", lineNum)
+							end if
+						else
+							ungetch()
+						end if
+					elsif n = 'r' or n = 's' then
+						flatSharp = 0
+					end if
+
+					if firstNote = -1 then
+						firstNote = note + flatSharp
+					else
+						if firstNote != note + flatSharp and note != -1 then
+							ERROR("Trying to concatenate different notes", lineNum)
+						end if
+					end if
+
+					if find(n, NOTES) > 0 or tie then
+						s = get_numeric_string()
+						if length(s) then
+							o = value(s)
+							if o[1] = GET_SUCCESS then
+								if find(o[2], supportedLengths) > 0 then 
+									len = 32 / o[2] 
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] and sequence(tuple[i]) then
+											WARNING("Note length ignored inside tuple", lineNum)
+										end if
+									end for
+								else
+									ERROR("Unsupported length: " & s, lineNum)
+								end if
+							else
+								ERROR("Bad length: " & s, lineNum)
+							end if
+						end if
+					end if
+					if len = -1 and tie then
+						ERROR("Expected a length", lineNum)
+					end if
+
+					tieOff = 0
+					slurOff = 0
+					dotOff = 0
+					
+					numChannels = 0
+					for i = 1 to length(supportedChannels) do
+						if activeChannels[i] then
+							if currentOctave[i] <= minOctave[i] and
+							   note > 0 and
+							   note < minNote[i] then
+								WARNING("The frequency of the note can not be reproduced for this octave: " & NOTES[note], lineNum)
+							end if
+							numChannels += 1
+							if len = -1 then
+								len = currentLength[i]
+							end if
+							if l = 0 then
+								if n != 'r' and n != 's' then
+									currentNote[i] = {(currentOctave[i] - minOctave[i]) * 12 + note + flatSharp - 1, len}
+								elsif n = 'r' then
+									currentNote[i] = {rest, len}
+								else
+									currentNote[i] = {rest2, len}
+								end if
+								lastSetLength[i] = len
+							else
+								if dot then
+									len = floor(lastSetLength[i] / 2)
+									lastSetLength[i] = len
+									if len >= 1 then
+										currentNote[i][2] += len
+									else
+										ERROR("Note length out of range due to dot command", lineNum)
+									end if
+									dotOff = 1
+								elsif tie then
+									currentNote[i][2] += len
+									tieOff = 1
+								elsif slur then
+									if note != -1 then
+										if ((currentOctave[i] - minOctave[i]) * 12 + note + flatSharp - 1 = currentNote[i][1]) or
+										    (currentNote[i][1] = rest and n = 'r') or
+										    (currentNote[i][1] = rest2 and n = 's') then
+											currentNote[i][2] += len
+											lastSetLength[i] = len
+											slurOff = 1
+										else
+											ERROR("Bad note: " & n, lineNum)
+										end if
+									end if
+								else
+									--? activeChannels
+									ERROR("Bad note: " & n, lineNum)
+								end if
+							end if
+						end if
+					end for
+					
+					if dotOff then
+						dot = 0
+					end if
+					if slurOff then
+						slur = 0
+					end if
+					if tieOff then
+						tie = 0
+					end if
+					
+					if numChannels = 0 then
+						ERROR("Trying to play a note with no active channels", lineNum)
+					end if
+
+					n = getch()
+					l += 1
+				end while
+				tie = 0
+				slur = 0
+				dot = 0
+				lastSetLength = repeat(0, length(supportedChannels))
+
+			elsif n = '{' then
+				write_note(1)
+				if sum(activeChannels) = 0 then
+					ERROR("{ requires at least one active channel", lineNum)
+				else
+					for i = 1 to length(supportedChannels) do
+						if activeChannels[i] then
+							if integer(tuple[i]) then
+								tuple[i] = {}
+							else
+							--	ERROR("Nested tuples are not allowed", lineNum)
+							end if
+						end if
+					end for
+				end if
+				
+			elsif n = '}' then
+				write_note(1)
+				s = get_numeric_string()
+				len = -1
+				if length(s) then
+					o = value(s)
+					if o[1] = GET_SUCCESS then
+						if find(o[2], supportedLengths) > 0 then 
+							len = 32 / o[2] 
+						else
+							ERROR("Unsupported length: " & s, lineNum)
+						end if
+					else
+						ERROR("Bad length: " & s, lineNum)
+					end if
+				end if
+				if len = -1 then
+					if length(patName) then
+						ADD_CMD(length(supportedChannels), {CMD_RTS})
+						patterns[1] = append(patterns[1], patName)
+						patterns[2] = append(patterns[2], songs[songNum][length(songs[songNum])])
+						patterns[3] &= hasAnyNote[length(supportedChannels)]
+						patterns[4] &= songLen[songNum][length(supportedChannels)]
+						patName = ""
+						songs[songNum][length(songs[songNum])] = {}
+						activeChannels[$] = 0
+					else
+						ERROR("Syntax error: }", lineNum)
+					end if
+				else
+					if sum(activeChannels) = 0 then
+						ERROR("Trying to close a tuple with no active channels", lineNum)
+					else
+						numChannels = 0
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								if sequence(tuple[i]) then
+									numChannels += 1
+									write_tuple(i, tuple[i], len)
+									tuple[i] = 0
+								end if
+							end if
+						end for
+						if numChannels = 0 then
+							ERROR("Found } with no matching {", lineNum)
+						end if
+					end if
+				end if							
+				
+			elsif find(n, supportedChannels) > 0 or find(n, "ACDEFKLMOPRSWnpw") > 0 then
+				write_note(1)
+				
+				if n = 'A' then
+					m = getch()
+					s = {m}
+					s &= getch()
+					s &= getch()
+					if equal(s, "DSR") then
+						bypass = 1
+						m = getch()
+						ungetch()
+						if m = '(' then
+							-- Implicit ADSR declaration
+							set_list_delimiters("()")
+							t = get_list()
+							if t[1] = GET_SUCCESS then
+								if length(t[3]) = 0 then
+									if length(t[2]) = adsrLen then
+										if in_range(t[2], 0, adsrMax) then
+											adsrs = assoc_append(adsrs, implicitAdsrId, t)
+										else
+											ERROR("ADSR parameters out of range: " & sprint_list(t), lineNum)
+										end if
+									else
+										ERROR("Bad number of ADSR parameters: " & sprint_list(t), lineNum)
+									end if
+								else
+									ERROR("Bad ADSR: " & sprint_list(t), lineNum)
+								end if
+							else
+								ERROR("Bad ADSR", lineNum)
+							end if
+							o = {GET_SUCCESS, implicitAdsrId}
+							implicitAdsrId += 1
+						else
+							-- Use a previously declared ADSR
+							s = get_numeric_string()
+							o = value(s)
+						end if
+						
+						if o[1] = GET_SUCCESS then
+							idx = assoc_find_key(adsrs, o[2])
+							if sum(activeChannels) = 0 then
+								ERROR("ADSR requires at least one active channel", lineNum)
+							elsif idx > 0 then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if supportsADSR[i] then
+											songs[songNum][i] &= {CMD_ADSR, idx}
+											adsrs = assoc_reference(adsrs, o[2])
+										else
+											WARNING("Unsupported command for this channel: ADSR", lineNum)
+										end if
+									end if
+								end for
+							else
+								ERROR("Undefined macro: ADSR" & s, lineNum)
+							end if
+						else
+							ERROR("Expected a number: " & s, lineNum)
+						end if
+					elsif m = 'M' then
+						ungetch()
+						ungetch()
+						s = get_numeric_string()
+						if length(s) then
+							bypass = 1
+							o = value(s)
+							if o[1] = GET_SUCCESS then
+								if in_range(o[2], 0, 1) then
+									if sum(activeChannels) = 0 then
+										ERROR("AM requires at least one active channel", lineNum)
+									else
+										for i = 1 to length(supportedChannels) do
+											if activeChannels[i] then
+												if supportsFM[i] then
+													songs[songNum][i] &= {CMD_HWAM, o[2]}
+												else
+													WARNING("Unsupported command for this channel: AM", lineNum)
+												end if
+											end if
+										end for
+									end if
+								else
+									ERROR("AM out of range", lineNum)
+								end if
+							else
+								ERROR("Bad AM: " & s, lineNum)
+							end if
+						else
+							ungetch()
+							if find(n, supportedChannels) <= 0 then
+								ERROR("Unexpected character: " & n, lineNum)
+							end if
+						end if						
+					else
+						ungetch()
+						ungetch()
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if						
+
+				elsif n = 'C' then
+					m = getch()
+					if m = 'S' then
+						bypass = 1
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							idx = find(o[2], panMacros[1])
+							if sum(activeChannels) = 0 then
+								ERROR("CS requires at least one active channel", lineNum)
+							elsif idx > 0 then
+								if supportsPan then
+									s = assoc_get_extra_data(panMacros, o[2])
+									idx = or_bits(idx, s[1] * #80)
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											songs[songNum][i] &= {CMD_PANMAC, idx}
+											panMacros = assoc_reference(panMacros, o[2])
+										end if
+									end for
+								else
+									WARNING("Unsupported command for this target: CS", lineNum)
+								end if
+							elsif supportsPan then
+								ERROR("Undefined macro: CS" & s, lineNum)
+							end if
+						else
+							m = getch()
+							t = m & getch()
+							if equal(t, "OF") then
+								if supportsPan then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											songs[songNum][i] &= {CMD_PANMAC, 0}
+										end if
+									end for
+								end if
+							else
+								ERROR("Syntax error: CS" & s, lineNum)
+							end if
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if						
+				
+				elsif n = 'D' then
+					m = getch()
+					if m = '-' or is_numeric(m) then
+						bypass = 1
+						ungetch()
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							if sum(activeChannels) = 0 then
+								ERROR("Detune requires at least one active channel", lineNum)
+							else
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if supportsDetune[i] then
+											if supportsFM[i] and
+											(target = TARGET_SMD or target = TARGET_CPS or target = TARGET_KSS) then
+												if in_range(o[2], -3, 3) then
+													l = o[2]
+													if l < 0 then
+														l = (-l) + 4
+													end if
+													songs[songNum][i] &= {CMD_DETUNE, l}
+												else
+													ERROR("Detune value out of range: " & s, lineNum)
+												end if
+											else
+												if in_range(o[2], -127, 127) then
+													songs[songNum][i] &= {CMD_DETUNE, o[2]}
+												else
+													ERROR("Detune value out of range: " & s, lineNum)
+												end if
+											end if
+										else
+											WARNING("Unsupported command for this channel: D", lineNum)
+										end if
+									end if
+								end for
+							end if
+						else
+							ERROR("Expected a number: " & s, lineNum)
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if						
+
+				elsif n = 'K' then
+					m = getch()
+					if m = '-' or is_numeric(m) then
+						bypass = 1
+						ungetch()
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							if sum(activeChannels) = 0 then
+								ERROR("Transpose requires at least one active channel", lineNum)
+							else
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if in_range(o[2], -127, 127) then
+											songs[songNum][i] &= {CMD_TRANSP, o[2]}
+										else
+											ERROR("Transpose value out of range: " & s, lineNum)
+										end if
+									end if
+								end for
+							end if
+						else
+							ERROR("Expected a number: " & s, lineNum)
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if			
+					
+				elsif n = 'E' then
+					m = getch()
+					if m = 'N' then
+						bypass = 1
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							idx = find(o[2], arpeggios[1])
+							if sum(activeChannels) = 0 then
+								ERROR("EN requires at least one active channel", lineNum)
+							elsif idx > 0 then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if not is_empty_list(arpeggios[ASSOC_DATA][idx]) then
+											arpeggios = assoc_reference(arpeggios, o[2])
+											s = assoc_get_extra_data(arpeggios, o[2])
+											idx = or_bits(idx, s[1] * #80)
+											if enRev = 0 then
+												songs[songNum][i] &= {CMD_ARPMAC, idx}
+												usesEN[1] += 1
+												usesEffect[i][USES_EN] = 1
+											else
+												songs[songNum][i] &= {CMD_APMAC2, idx}
+												usesEN[2] += 1
+												usesEffect[i][USES_EN2] = 1
+											end if
+										end if
+									end if
+								end for
+							else
+								ERROR("Undefined macro: EN" & s, lineNum)
+							end if
+						else
+							m = getch()
+							t = m & getch()
+							if equal(t, "OF") then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if enRev = 0 then
+											songs[songNum][i] &= CMD_ARPOFF 
+										else
+											songs[songNum][i] &= CMD_ARPOFF 
+										end if
+									end if
+								end for
+							else
+								ERROR("Syntax error: EN" & s, lineNum)
+							end if
+						end if
+
+					elsif m = 'P' then
+						bypass = 1
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							idx = find(o[2], pitchMacros[1])
+							if sum(activeChannels) = 0 then
+								ERROR("EP requires at least one active channel", lineNum)
+							elsif idx > 0 then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if not is_empty_list(pitchMacros[2][idx]) then
+											s = assoc_get_extra_data(pitchMacros, o[2])
+											idx = or_bits(idx, s[1] * #80)
+											songs[songNum][i] &= {CMD_SWPMAC, idx}
+											pitchMacros = assoc_reference(pitchMacros, o[2])
+											usesEffect[i][USES_EP] = 1
+										end if
+									end if
+								end for
+							else
+								ERROR("Undefined macro: EP" & s, lineNum)
+							end if
+						else
+							m = getch()
+							t = m & getch()
+							if equal(t, "OF") then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then	
+										songs[songNum][i] &= {CMD_SWPMAC, 0}
+									end if
+								end for
+							else
+								ERROR("Syntax error: EP" & s, lineNum)
+							end if
+						end if
+
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if
+
+				-- FM feedback select
+				elsif n = 'F' then
+					m = getch()
+					if m = 'B' then
+						s = get_numeric_string()
+						if length(s) then
+							bypass = 1
+							o = value(s)
+							if o[1] = GET_SUCCESS then
+								if sum(activeChannels) = 0 then
+									ERROR("FB requires at least on active channel", lineNum)
+								else
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											if supportsFM[i] then
+												if o[2] >=0 and o[2] <= 7 then
+													songs[songNum][i] &= or_bits(CMD_FEEDBK, o[2])
+												else
+													ERROR(sprintf("Feedback value out of range: %d", o[2]), lineNum)
+												end if
+											else
+												WARNING("FB commands on non-FM channels are ignored", lineNum)
+											end if
+										end if
+									end for
+								end if
+							else
+								ERROR("Bad feedback value: " & s, lineNum)
+							end if
+						else
+							m = getch()
+							if m = 'M' then
+								s = get_numeric_string()
+								if length(s) then
+									bypass = 1
+									o = value(s)
+									if o[1] = GET_SUCCESS then
+										if sum(activeChannels) = 0 then
+											ERROR("FBM requires at least on active channel", lineNum)
+										else
+											idx = find(o[2], feedbackMacros[1])
+											if idx > 0 then
+												s = assoc_get_extra_data(feedbackMacros, o[2])
+												idx = or_bits(idx, s[1] * #80)
+				
+												for i = 1 to length(supportedChannels) do
+													if activeChannels[i] then
+														if supportsFM[i] then
+															--if o[2] >=0 and o[2] <= 7 then
+																songs[songNum][i] &= {CMD_FBKMAC, idx}
+																feedbackMacros = assoc_reference(feedbackMacros, o[2])
+
+															--else
+															--	ERROR(sprintf("Feedback value out of range: %d", o[2]), lineNum)
+															--end if
+														else
+															WARNING("FBM commands on non-FM channels are ignored", lineNum)
+														end if
+													end if
+												end for
+											else
+												ERROR("Undefined macro: FBM" & s, lineNum)
+											end if
+										end if
+									else
+										ERROR("Bad feedback value: " & s, lineNum)
+									end if
+								else
+									ungetch()
+									ungetch()
+									if find(n, supportedChannels) <= 0 then
+										ERROR("Unexpected character: " & n, lineNum)
+									end if
+								end if
+							else
+								ungetch()
+								ungetch()
+								if find(n, supportedChannels) <= 0 then
+									ERROR("Unexpected character: " & n, lineNum)
+								end if
+							end if
+						end if
+
+					elsif m = 'T' then
+						bypass = 1
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							if target != TARGET_AT8 then
+								idx = find(o[2], filters[1])
+							else
+								idx = 0
+							end if
+							if sum(activeChannels) = 0 then
+								ERROR("FT requires at least one active channel", lineNum)
+							elsif idx > 0 then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if supportsFilter[i] then
+											songs[songNum][i] &= {CMD_FILTER, idx}
+											filters = assoc_reference(filters, o[2])
+										else
+											WARNING("Unsupported command for this channel: FT", lineNum)
+										end if
+									end if
+								end for
+							elsif target = TARGET_AT8 and o[2] = 0 then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										songs[songNum][i] &= {CMD_FILTER, 1}
+									end if
+								end for
+							else
+								ERROR("Undefined macro: FT" & s, lineNum)
+							end if
+						else
+							m = getch()
+							t = m & getch()
+							if equal(t, "OF") then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if supportsFilter[i] then
+											songs[songNum][i] &= {CMD_FILTER, 0}
+										end if
+									end if
+								end for
+							else
+								ERROR("Syntax error: FT" & s, lineNum)
+							end if
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if					
+
+				elsif n = 'L' then
+					if sum(activeChannels) = 0 or lastWasChannelSelect then
+						if find(n, supportedChannels) <= 0 then
+							write_note(1)
+							WARNING("Trying to set a loop point with no active channels", lineNum)
+							bypass = 1
+						end if
+					else
+						write_note(1)
+						bypass = 1
+						for i = 1 to length(supportedChannels) do
+							if activeChannels[i] then
+								if loopPoint[i] = -1 then
+									loopPoint[i] = length(songs[songNum][i])
+									songLoopLen[songNum][i] = songLen[songNum][i]
+								else
+									ERROR("Loop point already defined for channel " &
+									      supportedChannels[i], lineNum)
+								end if
+							end if
+						end for
+					end if
+				
+				-- Vibrato select						
+				elsif n = 'M' then
+					m = getch()
+					if m = 'P' then
+						bypass = 1
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							idx = find(o[2], vibratos[1])
+							if sum(activeChannels) = 0 then
+								ERROR("MP requires at least one active channel", lineNum)
+							elsif idx > 0 then
+								s = assoc_get_extra_data(vibratos, o[2])
+								idx = or_bits(idx, s[1] * #80)
+						
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										songs[songNum][i] &= {CMD_VIBMAC, idx}
+										vibratos = assoc_reference(vibratos, o[2])
+										usesEffect[i][USES_MP] = 1
+									end if
+								end for
+							else
+								ERROR("Undefined macro: MP" & s, lineNum)
+							end if
+						else
+							m = getch()
+							t = m & getch()
+							if equal(t, "OF") then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then	
+										songs[songNum][i] &= {CMD_VIBMAC, 0}
+									end if
+								end for
+							else
+								ERROR("Syntax error: MP" & s, lineNum)
+							end if
+						end if
+					elsif m = 'F' then
+						s = get_numeric_string()
+						if length(s) then
+							bypass = 1
+							o = value(s)
+							if o[1] = GET_SUCCESS then
+								if in_range(o[2], 0, 15) then
+									if sum(activeChannels) = 0 then
+										ERROR("MF requires at least one active channel", lineNum)
+									else
+										for i = 1 to length(supportedChannels) do
+											if activeChannels[i] then
+												if supportsFM[i] or target = TARGET_AT8 then
+													if target = TARGET_AT8 then
+														if o[2] = 0 then	-- 15 kHz
+															o[2] = 1
+														elsif o[2] = 1 then	-- 64 kHz
+															o[2] = 2
+														elsif o[2] = 2 then
+															o[2] = 3	-- CPU clock	
+														end if
+													end if
+													songs[songNum][i] &= {CMD_MULT, o[2]}
+												else
+													WARNING("MF ignored for non-FM channel", lineNum)
+												end if
+											end if
+										end for
+									end if
+								else
+									ERROR("MF out of range: " & s, lineNum)
+								end if
+							else
+								ERROR("Bad MF: " & s , lineNum)
+							end if
+						else
+							ungetch()
+							if find(n, supportedChannels) <= 0 then
+								ERROR("Unexpected character: " & n, lineNum)
+							end if
+						end if
+					elsif m = 'O' then
+						m = getch()
+						if m = 'D' then
+							s = get_numeric_string()
+							if length(s) then
+								bypass = 1
+								o = value(s)
+								if o[1] = GET_SUCCESS then
+									idx = find(o[2], mods[1])
+									if sum(activeChannels) = 0 then
+										ERROR("MOD requires at least one active channel", lineNum)
+									elsif idx > 0 then
+										for i = 1 to length(supportedChannels) do
+											if activeChannels[i] then
+												if supportsFM[i] or target = TARGET_PCE then
+													songs[songNum][i] &= {CMD_MODMAC, idx}
+													mods = assoc_reference(mods, o[2])
+												end if
+											end if
+										end for
+									else
+										ERROR("Undefined macro: MOD" & s, lineNum)
+									end if
+								else
+									ERROR("Bad MOD: " & s, lineNum)
+								end if
+							else
+								m = getch()
+								t = m & getch()
+								if equal(t, "OF") then
+									bypass = 1
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											if supportsFM[i] or target = TARGET_PCE then
+												songs[songNum][i] &= {CMD_MODMAC, 0}
+											end if
+										end if
+									end for
+								else
+									ungetch()
+									ungetch()
+									ungetch()
+									ungetch()
+									if find(n, supportedChannels) <= 0 then
+										ERROR("Unexpected character: " & n, lineNum)
+									end if
+								end if
+							end if
+						else
+							ungetch()
+							ungetch()
+							if find(n, supportedChannels) <= 0 then
+								ERROR("Unexpected character: " & n, lineNum)
+							end if
+						end if
+					elsif is_numeric(m) then
+						bypass = 1
+						ungetch()
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							if sum(activeChannels) = 0 then
+								ERROR("M requires at least one active channel", lineNum)
+							elsif in_range(o[2], 0, 15) then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										songs[songNum][i] &= or_bits(CMD_MODE, o[2])
+									end if
+								end for
+							else
+								ERROR("Bad mode: " & s, lineNum)
+							end if
+						else
+							ERROR("Bad mode: " & s, lineNum)
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if
+
+				-- FM operator select
+				elsif n = 'O' then
+					m = getch()
+					if m = 'P' and not lastWasChannelSelect then
+						s = get_numeric_string()
+						if length(s) then
+							bypass = 1
+							o = value(s)
+							if o[1] = GET_SUCCESS then
+								if in_range(o[2], 0, 4) then
+									if sum(activeChannels) = 0 then
+										ERROR("OP requires at least one active channel", lineNum)
+									else
+										for i = 1 to length(supportedChannels) do
+											if activeChannels[i] then
+												if supportsFM[i] then
+													songs[songNum][i] &= or_bits(CMD_OPER, o[2])
+												else
+													WARNING("OP ignored for non-FM channel", lineNum)
+												end if
+											end if
+										end for
+									end if
+								else
+									ERROR("OP out of range: " & s, lineNum)
+								end if
+							else
+								ERROR("Bad OP: " & s, lineNum)
+							end if
+						else
+							ungetch()
+							if find(n, supportedChannels) <= 0 then
+								ERROR("Unexpected character: " & n, lineNum)
+							end if
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if
+
+				-- Portamento select
+				elsif n = 'P' then
+					m = getch()
+					if m = 'T' then
+						bypass = 1
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							idx = find(o[2], portamentos[1])
+							if sum(activeChannels) = 0 then
+								ERROR("PT requires at least one active channel", lineNum)
+							elsif idx > 0 then
+								-- TODO: set portamento
+								WARNING("PT command not yet implemented", lineNum)
+							else
+								ERROR("Undefined macro: PT" & s, lineNum)
+							end if
+						else
+							m = getch()
+							t = m & getch()
+							if equal(t, "OF") then
+								-- TODO: deactivate portamento
+							else
+								ERROR("Syntax error: PT" & s, lineNum)
+							end if
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if
+
+				-- Rate scale / Ring modulation
+				elsif n = 'R' then
+					m = getch()
+					if m = 'I' then
+						s = {getch()}
+						s &= getch()
+						if equal(s, "NG") then
+							bypass = 1
+							s = get_numeric_string()
+							o = value(s)
+							if o[1] = GET_SUCCESS then
+								if sum(activeChannels) = 0 then
+									ERROR("RING requires at least one active channel", lineNum)
+								elsif in_range(o[2], 0, 1) then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											if supportsRing[i] then
+												songs[songNum][i] &= {CMD_HWRM, o[2]}
+											else
+												WARNING("Unsupported command for this channel: RING", lineNum)
+											end if
+										end if
+									end for
+								else
+									ERROR("RING out of range: " & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: RING" & s, lineNum)
+							end if
+						else
+							ungetch()
+							ungetch()
+							ungetch()
+							if find(n, supportedChannels) <= 0 then
+								ERROR("Unexpected character: " & n, lineNum)
+							end if
+						end if
+						
+					elsif m = 'S' and not lastWasChannelSelect then
+						bypass = 1
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							if sum(activeChannels) = 0 then
+								ERROR("RS requires at least one active channel", lineNum)
+							elsif in_range(o[2], 0, 3) then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if supportsFM[i] then
+											songs[songNum][i] &= {CMD_RSCALE, o[2]}
+										else
+											WARNING("Unsupported command for this channel: RS", lineNum)
+										end if
+									end if
+								end for
+							else
+								ERROR("RS out of range: " & s, lineNum)
+							end if
+						else
+							ERROR("Syntax error: RS" & s, lineNum)
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if
+
+				-- SSG-EG mode / Hard sync
+				elsif n = 'S' then
+					m = getch()
+					if m = 'Y' then
+						s = {getch()}
+						s &= getch()
+						if equal(s, "NC") then
+							bypass = 1
+							s = get_numeric_string()
+							o = value(s)
+							if o[1] = GET_SUCCESS then
+								if sum(activeChannels) = 0 then
+									ERROR("SYNC requires at least one active channel", lineNum)
+								elsif in_range(o[2], 0, 1) then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											if supportsRing[i] then
+												songs[songNum][i] &= {CMD_SYNC, o[2]}
+											else
+												WARNING("Unsupported command for this channel: SYNC", lineNum)
+											end if
+										end if
+									end for
+								else
+									ERROR("SYNC out of range: " & s, lineNum)
+								end if
+							else
+								ERROR("Syntax error: SYNC" & s, lineNum)
+							end if
+						else
+							ungetch()
+							ungetch()
+							ungetch()
+							if find(n, supportedChannels) <= 0 then
+								ERROR("Unexpected character: " & n, lineNum)
+							end if
+						end if
+					
+					elsif m = 'S' then
+						s = {m}
+						s &= getch()
+						if equal(s, "SG") then
+							bypass = 1
+							s = get_numeric_string()
+							o = value(s)
+							if o[1] = GET_SUCCESS then
+								if sum(activeChannels) = 0 then
+									ERROR("SSG requires at least one active channel", lineNum)
+								elsif in_range(o[2], 0, 7) then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											if supportsFM[i] then
+												songs[songNum][i] &= {CMD_SSG, o[2] + 1}
+											else
+												WARNING("Unsupported command for this channel: SSG", lineNum)
+											end if
+										end if
+									end for
+								else
+									ERROR("SSG out of range: " & s, lineNum)
+								end if
+							else
+								m = getch()
+								t = m & getch()
+								if equal(t, "OF") then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											if supportsFM[i] then
+												songs[songNum][i] &= {CMD_SSG, 0}
+											else
+												WARNING("SSG commands not supported for channel " & supportedChannels[i], lineNum)
+											end if
+										end if
+									end for
+								else
+									ERROR("Syntax error: SSG" & s, lineNum)
+								end if
+							end if
+						end if
+					else
+						--ungetch()
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if
+
+				elsif n = 'W' then
+					m = getch()
+					if m = 'T' then
+						bypass = 1
+						wtType = 0
+						m = getch()
+						if m = 'M' then
+							wtType = 1
+						else
+							ungetch()
+						end if
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							if wtType = 0 then
+								idx = find(o[2], waveforms[1])
+								if sum(activeChannels) = 0 then
+									ERROR("WT requires at least one active channel", lineNum)
+								elsif idx > 0 then
+									if sum(activeChannels) > 0 then
+										for i = 1 to length(supportedChannels) do
+											if activeChannels[i] then
+												if supportsWave[i] then
+													songs[songNum][i] &= {CMD_LDWAVE, idx}
+													waveforms = assoc_reference(waveforms, o[2])
+												else
+													WARNING("Unsupported command for channel " & supportedChannels[i] & ": WT", lineNum)
+												end if
+											end if
+										end for
+									else
+										WARNING("Trying to use WT with no channels active", lineNum)
+									end if
+								elsif sum(supportsWave) != 0 then
+									ERROR("Undefined macro: WT" & s, lineNum)
+								end if
+							else
+								idx = find(o[2], waveformMacros[1])
+								if sum(activeChannels) = 0 then
+									ERROR("WTM requires at least one active channel", lineNum)
+								elsif idx > 0 then
+									if sum(activeChannels) > 0 then
+										for i = 1 to length(supportedChannels) do
+											if activeChannels[i] then
+												if supportsWave[i] then
+													songs[songNum][i] &= {CMD_WAVMAC, idx}
+													waveformMacros = assoc_reference(waveformMacros, o[2])
+												else
+													WARNING("Unsupported command for channel " & supportedChannels[i] & ": WTM", lineNum)
+												end if
+											end if
+										end for
+									else
+										WARNING("Trying to use WTM with no channels active", lineNum)
+									end if
+								elsif sum(supportsWave) != 0 then
+									ERROR("Undefined macro: WTM" & s, lineNum)
+								end if
+							end if
+						else
+							m = getch()
+							t = m & getch()
+							if equal(t, "OF") then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if supportsWave[i] then
+											songs[songNum][i] &= {CMD_LDWAVE, 0}
+										else
+											WARNING("WT commands not supported for channel " & supportedChannels[i], lineNum)
+										end if
+									end if
+								end for
+							else
+								ERROR("Syntax error: WT" & s, lineNum)
+							end if
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if
+
+				elsif n = 'n' then
+					bypass = 1
+					s = get_numeric_string()
+					o = value(s)
+					if o[1] = GET_SUCCESS and in_range(o[2], 0, 63) then
+						if sum(activeChannels) = 0 then
+							ERROR("n requires at least one active channel", lineNum)
+						else
+							if sum(activeChannels) > 0 then
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										if target = TARGET_AST or target = TARGET_KSS or target = TARGET_CPC then
+											songs[songNum][i] &= {CMD_HWNS, xor_bits(o[2], 63)}
+										else
+											WARNING("Unsupported command for this channel: n", lineNum)
+										end if
+									end if
+								end for
+							else
+								WARNING("Trying to use n with no channels active", lineNum)
+							end if
+						end if
+					else
+						ERROR("Bad n: " & s, lineNum)
+					end if
+					
+				elsif n = 'p' then
+					m = getch()
+					if m = 'w' then
+						bypass = 1
+						s = get_numeric_string()
+						o = value(s)
+						if o[1] = GET_SUCCESS and in_range(o[2], 0, 15) then
+							if sum(activeChannels) = 0 then
+								ERROR("pw requires at least one active channel", lineNum)
+							else
+								if sum(activeChannels) > 0 then
+									for i = 1 to length(supportedChannels) do
+										if activeChannels[i] then
+											songs[songNum][i] &= or_bits(CMD_PULSE, o[2])
+										end if
+									end for
+								else
+									WARNING("Trying to use pw with no channels active", lineNum)
+								end if
+							end if
+						else
+							ERROR("Bad pw: " & s, lineNum)
+						end if
+					else
+						ungetch()
+						if find(n, supportedChannels) <= 0 then
+							ERROR("Unexpected character: " & n, lineNum)
+						end if
+					end if
+				
+				elsif n = 'w' then
+					l = CMD_WRMEM
+					m = getch()
+					if m = '(' then
+						l = CMD_WRPORT
+					else
+						ungetch()
+					end if
+					s = get_numeric_string()
+					if length(s) then
+						o = value(s)
+						if o[1] = GET_SUCCESS then
+							if o[2] >=0 and o[2] <= #FFFF then
+								t = o
+								m = getch()
+								if l = CMD_WRPORT then
+									if m != ')' then
+										ERROR("Expected \')\'", lineNum)
+									end if
+									m = getch()
+								end if
+								if m != ',' then
+									ERROR("Expected \',\'", lineNum)
+								end if
+								s = get_numeric_string()
+								if not length(s) then
+									ERROR("Missing second argument for w", lineNum)
+								end if
+								o = value(s)
+								if o[1] != GET_SUCCESS then
+									ERROR("Bad second argument for w", lineNum)
+								end if
+								for i = 1 to length(supportedChannels) do
+									if activeChannels[i] then
+										songs[songNum][i] &= {l,
+										                      and_bits(t[2], #FF),
+										                      floor(t[2] / #100),
+										                      and_bits(o[2], #FF)}
+									end if
+								end for
+								bypass = 1
+							else
+								ERROR("Memory address out of range: " & s, lineNum)
+							end if
+						else
+							ERROR("Bad first argument for w: " & s, lineNum)
+						end if
+					else
+						ERROR("Bad first argument for w", lineNum)
+					end if
+				
+				end if
+				
+				if not bypass then
+					if not lastWasChannelSelect then
+						activeChannels = repeat(0, length(supportedChannels))
+					end if
+					activeChannels[find(n, supportedChannels)] = 1
+				end if		
+			elsif find(n, "\t " & {13, 10}) > 0 then
+				write_note(n = 10)	
+			else
+				if n = '%' then
+					ERROR("Unexpected character: %%", lineNum)
+				else
+					ERROR("Unexpected character: " & n, lineNum)
+				end if
+			end if
+
+			if find(n2, supportedChannels) > 0 then
+				lastWasChannelSelect = 1
+			else
+				lastWasChannelSelect = 0
+			end if
+		end if
+	end while
+
+	shortFilename = oldSFN
+	lineNum = oldLineNum
+	fileData = oldFileData[1]
+	fileDataPos = oldFileData[2]
+end procedure
+
+
+integer effectsRemoved
+effectsRemoved = 0
+function remove_unused_effects(sequence tbl, object cmd)
+	integer n
+	
+	n = 1
+	while n <= length(tbl[ASSOC_KEY]) do
+		if not tbl[ASSOC_REF][n] then
+			for i = 1 to length(songs) do
+				if sequence(songs[i]) then
+					for j = 1 to length(supportedChannels) do
+						for k = 1 to length(songs[i][j]) do
+							if atom(cmd) then
+								if songs[i][j][k] = cmd then
+									if and_bits(songs[i][j][k + 1], #7F) > n then
+										songs[i][j][k + 1] = 
+											or_bits(and_bits(songs[i][j][k + 1], #7F) - 1,
+											        and_bits(songs[i][j][k + 1], #80))
+									end if
+								end if
+							else
+								for l = 1 to length(cmd) do
+									if songs[i][j][k] = cmd[l] then
+										if and_bits(songs[i][j][k + 1], #7F) > n then
+											songs[i][j][k + 1] = or_bits(and_bits(songs[i][j][k + 1], #7F) - 1,
+											        		     and_bits(songs[i][j][k + 1], #80))
+
+										end if
+										exit
+									end if
+								end for
+							end if
+						end for
+					end for
+				end if
+			end for
+			tbl[ASSOC_KEY]   = substr2(tbl[ASSOC_KEY],   1, n-1) & substr2(tbl[ASSOC_KEY],   n+1, length(tbl[ASSOC_KEY]))
+			tbl[ASSOC_DATA]  = substr2(tbl[ASSOC_DATA],  1, n-1) & substr2(tbl[ASSOC_DATA],  n+1, length(tbl[ASSOC_DATA]))
+			tbl[ASSOC_REF]   = substr2(tbl[ASSOC_REF],   1, n-1) & substr2(tbl[ASSOC_REF],   n+1, length(tbl[ASSOC_REF]))
+			tbl[ASSOC_EXTRA] = substr2(tbl[ASSOC_EXTRA], 1, n-1) & substr2(tbl[ASSOC_EXTRA], n+1, length(tbl[ASSOC_EXTRA]))
+			effectsRemoved += 1
+		else
+			n += 1
+		end if
+	end while
+	
+	return tbl					
+end function
+
+
+procedure compile(sequence fileNames)
+	integer idx, l, m, n, n2, numChannels, prevLine,
+	        note, firstNote, flatSharp, dot,
+	        hasTie, hasSlur, writeVGM, writeWAV
+	atom len
+	sequence s, t, u, macro
+	object o
+	
+	songTitle 	= "Unknown"
+	songComposer 	= "Unknown"
+	songProgrammer 	= "Unknown"
+	songGame	= "Unknown"
+	songAlbum 	= "Unknown"
+	
+	supportsPAL 	= 0
+	useFractionalDelays = 1
+	writeVGM = 0
+	writeWAV = 0
+	adsrLen = 4
+	adsrMax = 15
+	defines = {{}, {}}
+	updateFreq 	= 60.0
+	
+	tune = 0
+
+	supportedChannels	= {}	
+	supportsDutyChange 	= {}
+	supportsVolumeChange 	= {}
+	supportsFM		= {}
+	supportsADSR		= {}
+	supportsFilter		= {}
+	supportsRing		= {}
+	supportsWave 		= {}
+	supportsPCM 		= {}
+	activeChannels 		= {}
+	supportsHwToneEnv	= {}
+	supportsHwVolEnv	= {}
+	supportsDetune		= {}
+	minOctave 		= {}
+	maxOctave 		= {}
+	maxVolume 		= {}
+	minNote 		= {}
+	channelType 		= {}
+	
+	call_proc(targetList[TRG_INIT_PROC][target], {})
+	
+
+	if target = TARGET_SAT then
+		define("SAT", 1)
+		supportedChannels 	= {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'}
+		supportsDutyChange 	= { 7,   7,   7,   7,   7,   7,   7,   7}
+		supportsVolumeChange 	= { 1,   1,   1,   1,   1,   1,   1,   1}
+		supportsFM		= { 1,   1,   1,   1,   1,   1,   1,   1}
+		supportsADSR		= supportsFM
+		supportsFilter		= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsRing		= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsWave 		= { 0,   0,   0,   0,   0,   0,   0,   0} --{ 1,   1,   1,   1,   1,   1,   1,   1}
+		supportsPCM 		= { 0,   0,   0,   0,   0,   0,   0,   0} --{ 1,   1,   1,   1,   1,   1,   1,   1}
+		activeChannels 		= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsHwToneEnv	= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsHwVolEnv	= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsDetune		= { 1,   1,   1,   1,   1,   1,   1,   1}
+		maxTempo 		= 300
+		minOctave 		= {1, 1, 1, 1, 1, 1, 1, 1}
+		maxOctave 		= {7, 7, 7, 7, 7, 7, 7, 7}
+		minVolume 		= 0
+		maxVolume 		= {127, 127, 127, 127, 127, 127, 127, 127}
+		supportsPan 		= 0
+		minNote 		= {1, 1, 1, 1, 1, 1, 1, 1}
+		maxLoopDepth 		= 2
+		supportsPAL 		= 1
+		adsrLen			= 5
+		adsrMax			= 63
+		minWavLength 		= 1
+		maxWavLength 		= 2097152 -- 2MB
+		minWavSample 		= 0
+		maxWavSample		= 255
+		
+	elsif target = TARGET_X68 then
+		define("X68", 1)
+		supportedChannels 	= {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'}
+		supportsDutyChange 	= { 7,   7,   7,   7,   7,   7,   7,   7}
+		supportsVolumeChange 	= { 1,   1,   1,   1,   1,   1,   1,   1}
+		supportsFM		= { 1,   1,   1,   1,   1,   1,   1,   1}
+		supportsADSR		= supportsFM
+		supportsFilter		= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsRing		= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsWave 		= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsPCM 		= { 0,   0,   0,   0,   0,   0,   0,   0}
+		activeChannels 		= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsHwToneEnv	= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsHwVolEnv	= { 0,   0,   0,   0,   0,   0,   0,   0}
+		supportsDetune		= { 1,   1,   1,   1,   1,   1,   1,   1}
+		maxTempo 		= 300
+		minOctave 		= {1, 1, 1, 1, 1, 1, 1, 1}
+		maxOctave 		= {7, 7, 7, 7, 7, 7, 7, 7}
+		minVolume 		= 0
+		maxVolume 		= {127, 127, 127, 127, 127, 127, 127, 127}
+		supportsPan 		= 0
+		minNote 		= {1, 1, 1, 1, 1, 1, 1, 1}
+		maxLoopDepth 		= 2
+		supportsPAL 		= 0
+		adsrLen			= 5
+		adsrMax			= 63
+		minWavLength 		= 0
+		maxWavLength 		= 0
+		minWavSample 		= 0
+		maxWavSample		= 0
+		useFractionalDelays	= 0
+
+	--elsif target = TARGET_PCE then
+	--	define("PCE", 1)
+	--	define("TGX", 1)
+	--	supportedChannels 	= {'A', 'B', 'C', 'D', 'E', 'F'}
+	--	supportsDutyChange 	= { -1, -1,  -1,  -1 , -1,  -1}
+	--	supportsVolumeChange 	= { 1,   1,   1,   1,   1,   1}
+	--	supportsFM		= { 0,   0,   0,   0,   0,   0}
+	--	supportsADSR		= supportsFM
+	--	supportsFilter		= { 0,   0,   0,   0,   0,   0}
+	--	supportsRing		= { 0,   0,   0,   0,   0,   0}
+	--	supportsWave 		= { 1,   1,   1,   1,   1,   1}
+	--	supportsPCM 		= { 0,   0,   0,   0,   0,   1}
+	--	activeChannels 		= { 0,   0,   0,   0,   0,   0}
+	--	supportsHwToneEnv	= { 0,   0,   0,   0,   0,   0}
+	--	supportsHwVolEnv	= { 0,   0,   0,   0,   0,   0}
+	--	supportsDetune 		= { 1,   1,   1,   1,   1,   1}
+	--	maxTempo 		= 300
+	--	minNote 		= repeat(1, length(supportedChannels))
+	--	minOctave 		= {1, 1, 1, 1, 1, 1}
+	--	maxOctave 		= {8, 8, 8, 8, 8, 8}
+	--	minVolume 		= 0
+	--	maxVolume 		= {63, 63, 63, 63, 63, 63}
+	--	supportsPan 		= 1
+	--	maxLoopDepth 		= 2
+	--	minWavLength		= 32
+	--	maxWavLength		= 262144
+	--	minWavSample 		= 0
+	--	maxWavSample		= 63
+		
+	elsif target = TARGET_GBA then
+		define("GBA", 1)
+		supportedChannels 	= {'A', 'B', 'C', 'D', 'E', 'F'}
+		supportsDutyChange 	= { 3,   3,  -1,  -1 , -1,  -1}
+		supportsVolumeChange 	= { 1,   1,   1,   1,   1,   1}
+		supportsFM		= { 0,   0,   0,   0,   0,   0}
+		supportsADSR		= supportsFM
+		supportsFilter		= { 0,   0,   0,   0,   0,   0}
+		supportsRing		= { 0,   0,   0,   0,   0,   0}
+		supportsWave 		= { 0,   0,   1,   0,   1,   1}
+		supportsPCM 		= { 0,   0,   0,   0,   1,   1}
+		activeChannels 		= { 0,   0,   0,   0,   0,   0}
+		supportsHwToneEnv	= { 7,   0,   0,   0,   0,   0}
+		supportsHwVolEnv	= { 7,   7,   0,   7,   0,   0}
+		supportsDetune 		= { 1,   1,   0,   0,   1,   1}
+		maxTempo 		= 300
+		minNote 		= repeat(1, length(supportedChannels))
+		minOctave 		= {2, 2, 2, 2, 2, 2, 2, 2, 2, 2}
+		maxOctave 		= {7, 7, 7, 7, 7, 7, 7, 7, 7, 7}
+		minVolume 		= 0
+		maxVolume 		= {15, 15, 4, 15, 1, 1}
+		supportsPan 		= 1
+		maxLoopDepth 		= 4
+		minWavLength		= 32
+		maxWavLength		= 262144
+		minWavSample 		= -128
+		maxWavSample		= 127
+
+	elsif target = TARGET_NDS then
+		define("NDS", 1)
+		supportedChannels 	= {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'}
+		supportsDutyChange 	= { 7,   7,   7,   7,  -1,  -1,  -1,  -1,  -1,  -1}
+		supportsVolumeChange 	= { 1,   1,   1,   1,   1,   1,   1,   1,   1,   1}
+		supportsFM		= { 0,   0,   0,   0,   0,   0,   0,   0,   0,   0}
+		supportsADSR		= supportsFM
+		supportsFilter 		= { 0,   0,   0,   0,   0,   0,   0,   0,   0,   0}
+		supportsRing		= { 0,   0,   0,   0,   0,   0,   0,   0,   0,   0}
+		supportsWave 		= { 0,   0,   0,   0,   0,   0,   1,   1,   1,   1}
+		supportsPCM 		= { 0,   0,   0,   0,   0,   0,   1,   1,   1,   1}
+		activeChannels 		= { 0,   0,   0,   0,   0,   0,   0,   0,   0,   0}
+		supportsHwToneEnv	= { 0,   0,   0,   0,   0,   0,   0,   0,   0,   0}
+		supportsHwVolEnv	= { 0,   0,   0,   0,   0,   0,   0,   0,   0,   0}
+		supportsDetune 		= { 1,   1,   1,   1,   1,   1,   1,   1,   1,   1}
+		maxTempo 		= 300
+		minNote 		= repeat(1, length(supportedChannels))
+		minOctave 		= {2, 2, 2, 2, 2, 2, 2, 2, 2, 2}
+		maxOctave 		= {7, 7, 7, 7, 7, 7, 7, 7, 7, 7}
+		minVolume 		= 0
+		maxVolume 		= {127, 127, 127, 127, 127, 127, 127, 127, 127, 127}
+		supportsPan 		= 1
+		maxLoopDepth 		= 4
+		minWavLength		= 32
+		maxWavLength		= 262144
+		minWavSample 		= -128
+		maxWavSample		= 127
+		
+	elsif target = TARGET_XGS then
+		define("XGS", 1)
+		supportedChannels 	= {'A', 'B', 'C'}
+		supportsDutyChange 	= { 3,   3,   3}
+		supportsVolumeChange 	= { 1,   1,   1}
+		supportsFM		= { 0,   0,   0}
+		supportsADSR		= supportsFM
+		supportsFilter		= { 0,   0,   0}
+		supportsRing		= { 0,   0,   0}
+		supportsWave 		= { 0,   0,   0}
+		supportsPCM 		= { 0,   0,   0}
+		activeChannels 		= { 0,   0,   0}
+		supportsHwToneEnv	= { 0,   0,   0}
+		supportsHwVolEnv	= { 0,   0,   0}
+		supportsDetune		= { 0,   0,   0}
+		maxTempo 		= 300
+		minNote 		= repeat(1, length(supportedChannels))
+		minOctave 		= {2, 2, 2}
+		maxOctave 		= {7, 7, 7}
+		minVolume 		= 0
+		maxVolume 		= {15, 15, 15}
+		supportsPan 		= 1
+		maxLoopDepth 		= 2
+		supportsPAL		= 1
+		useFractionalDelays	= 0
+
+	elsif target = TARGET_AST then
+		define("AST", 1)
+		supportedChannels 	= {'A', 'B', 'C'}
+		supportsDutyChange 	= { 7,   7,   7}
+		supportsVolumeChange 	= { 1,   1,   1}
+		supportsFM		= { 0,   0,   0}
+		supportsADSR		= supportsFM
+		supportsFilter		= { 0,   0,   0}
+		supportsRing		= { 0,   0,   0}
+		supportsWave 		= { 0,   0,   0}
+		supportsPCM 		= { 0,   0,   0}
+		activeChannels 		= { 0,   0,   0}
+		supportsHwToneEnv	= {15,  15,  15}
+		supportsHwVolEnv	= { 0,   0,   0}
+		supportsDetune		= { 0,   0,   0}
+		maxTempo 		= 300
+		minNote 		= repeat(1, length(supportedChannels))
+		minOctave 		= {1, 1, 1}
+		maxOctave 		= {7, 7, 7}
+		minVolume 		= 0
+		maxVolume 		= {15, 15, 15}
+		supportsPan 		= 1
+		maxLoopDepth 		= 2
+		supportsPAL		= 1		
+
+		
+	elsif target = TARGET_PC4 then
+		define("PC4", 1)
+		supportedChannels 	= {'A', 'B', 'C', 'D'}
+		supportsDutyChange 	= { 15,   15,  15,   15}
+		supportsVolumeChange 	= { 1,   1,   1,   1}
+		supportsFM		= { 1,   1,   1,   1}
+		supportsADSR		= supportsFM
+		supportsFilter		= { 1,   1,   1,   1}
+		supportsRing		= { 0,   0,   0,   0}
+		supportsWave 		= { 0,   0,   0,   0}
+		supportsPCM 		= { 0,   0,   0,   0}
+		activeChannels 		= { 0,   0,   0,   0}
+		supportsHwToneEnv	= { 7,   7,   7,   7}
+		supportsHwVolEnv	= { 7,   7,   7,   7}
+		supportsDetune		= { 1,   1,   1,   1}
+		maxTempo 		= 300
+		minNote 		= repeat(1, length(supportedChannels))
+		minOctave 		= {1, 1, 1, 1}
+		maxOctave 		= {9, 9, 9, 9}
+		minVolume 		= 0
+		maxVolume 		= {15, 15, 15, 15}
+		supportsPan 		= 1
+		maxLoopDepth 		= 2
+		minWavLength		= 32
+		maxWavLength		= 32
+		minWavSample 		= 0
+		maxWavSample		= 15
+		
+	end if
+
+	if useFractionalDelays then
+		supportedLengths = EXTENDED_LENGTHS
+	else
+		supportedLengths = STANDARD_LENGTHS
+	end if
+	
+	rest = (max(maxOctave) + 1 - min(minOctave)) * 12
+	rest2 = (max(maxOctave) + 1 - min(minOctave)) * 12 + 1
+
+	-- Add a special "channel" that is used for patterns
+	supportedChannels	&= '¨'			
+	supportsDutyChange 	&= max(supportsDutyChange)
+	supportsVolumeChange 	&= max(supportsVolumeChange)
+	supportsFM		&= max(supportsFM)
+	supportsADSR		&= max(supportsADSR)
+	supportsFilter		&= max(supportsFilter)
+	supportsRing		&= max(supportsRing)
+	supportsWave 		&= max(supportsWave)
+	supportsPCM 		&= max(supportsPCM)
+	activeChannels 		&= max(activeChannels)
+	supportsHwToneEnv	&= max(supportsHwToneEnv)
+	supportsHwVolEnv	&= max(supportsHwVolEnv)
+	supportsDetune		&= max(supportsDetune)
+	minOctave 		&= min(minOctave)
+	maxOctave 		&= max(maxOctave)
+	maxVolume 		&= max(maxVolume)
+	minNote 		&= min(minNote)	
+
+	machineVolLimit = maxVolume
+		
+	n = length(fileNames[1])
+	while n > 0 and fileNames[1][n] != '.' do
+		if fileNames[1][n] = '\\' or fileNames[1][n] = '/' then
+			n = 0
+			exit
+		end if
+		n -= 1
+	end while
+	if n = 0 then
+		shortFilename = fileNames[1]
+		fileNames[1] &= ".mml"
+	else
+		shortFilename = fileNames[1][1..n - 1]
+	end if
+	if length(fileNames) > 1 then
+		shortFilename = fileNames[2]
+		n = length(fileNames[2])
+		while n > 0 and fileNames[2][n] != '.' do
+			n -= 1
+		end while
+		if n != 0 then
+			shortFilename = fileNames[2][1..n - 1]
+			writeVGM = equal(lower(fileNames[2][n..length(fileNames[2])]), ".vgm")
+			writeVGM += equal(lower(fileNames[2][n..length(fileNames[2])]), ".vgz") * 2
+			writeWAV = equal(lower(fileNames[2][n..length(fileNames[2])]), ".wav")
+		end if
+	end if
+	
+	songs 		= repeat(0, 100)
+	songLen 	= repeat(0, 100)
+	songs[1] 	= repeat({}, length(supportedChannels))
+	songLen[1] 	= repeat(0, length(supportedChannels))
+
+	songLoopLen 	= songLen
+	songNum 	= 1
+	lineNum 	= 1
+	prevLine 	= 1
+	tie 		= 0
+	slur 		= 0
+	octaveRev 	= 1
+	enRev 		= 0
+	gbNoise		= 0
+	gbVolCtrl	= 0
+	lastWasChannelSelect = 0
+	shortestDelay 	= {1000000,1000000}
+	longestDelay 	= 0
+	keepChannelsActive = 0
+	userDefinedBase	= 10
+	implicitAdsrId	= 10000
+	
+	dontCompile	= {0}
+	hasElse		= {0}
+	macros 		= assoc_create()
+	patterns 	= {{},{},{},{}}
+	volumeMacros 	= assoc_create()
+	panMacros 	= assoc_create()
+	volumeSlides 	= assoc_create()
+	dutyMacros 	= assoc_create()
+	pitchMacros 	= assoc_create()
+	feedbackMacros 	= assoc_create()
+	pulseMacros 	= assoc_create()
+	arpeggios 	= assoc_create()
+	vibratos 	= assoc_create()
+	portamentos 	= assoc_create()
+	waveforms	= assoc_create()
+	waveformMacros	= assoc_create()
+	pcms		= assoc_create()
+	adsrs		= assoc_create()
+	mods		= assoc_create()
+	filters		= assoc_create()
+	callbacks 	= {}
+	loopStack 	= repeat({}, length(supportedChannels))
+	currentLength 	= repeat(8, length(supportedChannels))
+	currentNoteFrames = repeat({}, length(supportedChannels))
+	currentOctave 	= repeat(4, length(supportedChannels))
+	currentTempo 	= repeat(125, length(supportedChannels))
+	currentCutoff 	= repeat({8, CT_NORMAL}, length(supportedChannels))
+	currentVolume 	= floor(maxVolume / 2)
+	loopPoint 	= repeat(-1, length(supportedChannels))
+	currentNote 	= repeat({}, length(supportedChannels))
+	lastSetLength 	= repeat(0, length(supportedChannels))
+	pendingOctChange = repeat(0, length(supportedChannels))
+	hasAnyNote    	= repeat(0, length(supportedChannels))
+	tuple		= repeat(0, length(supportedChannels))
+	usesEN		= {0, 0}
+	usesEffect	= repeat({0,0,0,0,0,0}, length(supportedChannels))
+	
+	for i = 1 to length(supportedChannels) do
+		currentNoteFrames[i] = note_length(i, currentLength[i])
+	end for
+	
+	patName		= ""
+	pattern 	= {}
+	
+	fileData	= ""
+	fileDataPos 	= 1
+	compile_file(fileNames[1])
+	
+	write_note(1)
+	
+	for i = 1 to length(loopStack) do
+		if length(loopStack[i]) then
+			ERROR("Open [ on channel " & supportedChannels[i], lineNum)
+		end if
+	end for
+
+	if length(patName) then
+		ERROR("Missing }", lineNum)
+	end if
+	
+	for i = 1 to length(supportedChannels)-1 do
+		songLoopLen[songNum][i] = songLen[songNum][i] - songLoopLen[songNum][i]
+		if loopPoint[i] = -1 then
+			songs[songNum][i] &= CMD_END
+		else
+			if not hasAnyNote[i] then
+				songs[songNum][i] &= CMD_END
+			else
+				songs[songNum][i] &= {CMD_JMP, and_bits(loopPoint[i], #FF), floor(loopPoint[i] / #100)}
+			end if
+		end if
+	end for
+	
+	len = -1 
+	for j = 1 to length(songs) do
+		if sequence(songs[j]) then
+			for i = 1 to length(supportedChannels)-1 do
+				if songLen[j][i] then
+					if len = -1 then 
+						len = songLen[j][i] 
+					elsif songLen[j][i] != len then 
+						WARNING(sprintf("Mismatch in length between channels in song %d", j), -1)
+						exit
+					end if
+				end if
+			end for
+		end if
+	end for
+	
+	volumeMacros 	= remove_unused_effects(volumeMacros, CMD_VOLMAC)
+	pitchMacros 	= remove_unused_effects(pitchMacros, CMD_SWPMAC)
+	dutyMacros 	= remove_unused_effects(dutyMacros, CMD_DUTMAC)
+	feedbackMacros 	= remove_unused_effects(feedbackMacros, CMD_FBKMAC)
+	pulseMacros 	= remove_unused_effects(pulseMacros, CMD_PULMAC)
+	arpeggios 	= remove_unused_effects(arpeggios, {CMD_ARPMAC, CMD_APMAC2})
+	vibratos 	= remove_unused_effects(vibratos, CMD_VIBMAC)
+	adsrs	 	= remove_unused_effects(adsrs, CMD_ADSR)
+	mods 		= remove_unused_effects(mods, CMD_MODMAC)
+	filters		= remove_unused_effects(filters, CMD_FILTER)
+	--? waveforms
+	waveforms	= remove_unused_effects(waveforms, CMD_LDWAVE)
+	waveformMacros 	= remove_unused_effects(waveformMacros, CMD_WAVMAC)
+	for i = 1 to length(waveformMacros[ASSOC_KEY]) do
+		for j = 1 to length(waveformMacros[ASSOC_EXTRA][i][LIST_MAIN]) do
+			if and_bits(j,1) then
+				waveformMacros[ASSOC_DATA][i][LIST_MAIN][j] = assoc_find_key(waveforms, waveformMacros[ASSOC_EXTRA][i][LIST_MAIN][j])
+			end if
+		end for
+		for j = 1 to length(waveformMacros[ASSOC_DATA][i][LIST_LOOP]) do
+			if and_bits(j,1) then
+				waveformMacros[ASSOC_DATA][i][LIST_LOOP][j] = assoc_find_key(waveforms, waveformMacros[ASSOC_EXTRA][i][LIST_LOOP][j])
+			end if
+		end for
+	end for
+	--? waveformMacros
+	if verbose then
+		printf(1, "Removed %d unused effect(s)\n", effectsRemoved)
+	end if
+	
+
+	call_proc(targetList[TRG_OUTP_PROC][target], {{writeVGM}})
+	
+	
+	puts(1, "\nDone.\n")
+end procedure
+
+
+
+verbose = 0
+warningsAreErrors = 0
+target = TARGET_UNKNOWN
+
+procedure show_help(sequence what)
+	if length(what) = 0 then
+		puts(1, "Usage: xpmc.exe [options] target input [output]\n\n")
+		puts(1, "Options:\n")
+		puts(1, "\t-h\tShow this information\n") -- / Information about a\n\t                specific command (e.g. -h EP)\n")
+		puts(1, "\t-v\tVerbose mode\n")
+		puts(1, "\t-w\tTreat warnings as errors\n")
+		puts(1, "\nTarget:\n")
+		puts(1, "\t-at8\tAtari 8-bit\n")
+		puts(1, "\t-c64\tCommodore 64\n")
+		puts(1, "\t-clv\tColecoVision\n")
+		puts(1, "\t-cpc\tAmstrad CPC\n")
+		puts(1, "\t-cps\tCPS-1\n")
+		--puts(1, "\t-gba\tGameboy Advance\n")
+		puts(1, "\t-gbc\tGameboy / Gameboy Color\n")
+		puts(1, "\t-gen\tSEGA Genesis\n")
+		puts(1, "\t-kss\tKSS\n")
+		--puts(1, "\t-nds\tNintendo DS\n")
+		--puts(1, "\t-sat\tSEGA Saturn\n")
+		puts(1, "\t-sgg\tSEGA Game Gear\n")
+		puts(1, "\t-sms\tSEGA Master System\n")
+	elsif equal(what, "EN") then
+		puts(1, "EN:\tArpeggio macro: { num | num}. num is zero or more numbers in\n\tthe range -63-63.\n")
+	end if
+end procedure
+
+
+cmdLine = command_line()
+if length(cmdLine) <= 2 then
+	show_help("")
+	abort(0)
+end if
+
+for i = 3 to length(cmdLine) do
+	if cmdLine[i][1] = '-' then
+		restOfLine = cmdLine[i][2..length(cmdLine[i])]
+		if equal(restOfLine, "v") then
+			verbose = 1
+		elsif equal(restOfLine, "w") then
+			warningsAreErrors = 1
+		elsif equal(restOfLine, "h") or equal(restOfLine, "help") then
+			if i < length(cmdLine) then
+				if equal(cmdLine[i+1], "EN") then
+					show_help("EN")
+				elsif equal(cmdLine[i+1], "EP") then
+					show_help("EP")
+				elsif equal(cmdLine[i+1], "MP") then
+					show_help("MP")
+				else
+					show_help("")
+				end if
+			else
+				show_help("")
+			end if
+			exit
+		elsif find(restOfLine, targetList[1]) > 0 then
+			target = find(restOfLine, targetList[1])
+		end if
+	else
+		compile(cmdLine[i..length(cmdLine)])
+		exit
+	end if
+end for

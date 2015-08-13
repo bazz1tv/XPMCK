@@ -1,0 +1,103 @@
+;---------------------------------------------------------------
+#TITLE		Astaroth title (YM2151 version)
+#COMPOSER	Mad Max
+#PROGRAMMER	mic
+#OCTAVE-REV 	0
+#TUNE
+;---------------------------------------------------------------
+
+#IFNDEF CPS
+#ERROR "This track is for CPS-1 only."
+#ENDIF
+
+;---------------------------------------------------------------
+; Drum volume macros
+;---------------------------------------------------------------
+@v2 = { 8 9 10 9 8 5 5 4 2 2 2 1 1 1 1 4 }
+@v3 = { 13 8 5 4 6 1 2 1 4 }
+@v4 = { 13 7 2 0 }
+@v5 = { 14 14 13 12 12 9 9 7 5 4 3 2 1 1 0 }		
+@v6 = { 12 12 8 8 8 4 4 0 2 }	
+
+
+; Global tempo
+ABCDEFGH t150 EPOF MPOF
+
+; Set up detuning and multipliers
+ABCDE OP1 D-3 MF3  OP2 D0 MF13  OP3 D3 MF3  OP4 D1 MF1
+F     OP1 D1                    OP3 D-1 MF2
+
+; Define some envelopes
+@ADSR1 = {20 9 4 9 7}
+@ADSR2 = {27 20 7 8 11}
+@ADSR3 = {18 9 4 10 4}
+@ADSR4 = {12 4 1 8 0}
+
+;---------------------------------------------------------------
+; Melody and echo
+;---------------------------------------------------------------
+A l8 @5 FB2 OP0 v103 ADSR1	; OP0 selects all operators
+B l8 @5 FB3 OP0 v98 ADSR3  
+B r8
+AB ( OP3 v105
+ L
+ o4
+ <g>ce<g>cf<g>cg<g>cf<g>ced
+ <g>ce<g>cd<g>ce<g>cf<g>ced
+ <ea>c<ea>d<ea>c<ea>d<ea>c<b
+ ea>c<ea>d<ea>c<eabeaag
+ cfacfbcf>c<cfbcf>c<b
+ cfacfbcf>c<cf>d<cf>c<b
+ dgbdg>c<dg>d<dg>c<dgbd
+ dg>d<dg>e<dg>f<dg>g<dg>g<d
+)
+
+
+;---------------------------------------------------------------
+; Bass
+;---------------------------------------------------------------
+C ( l8 @1 FB2 @q2 OP0 v104 ADSR1 OP1 v107 OP2 v106
+ [r1]16
+ L
+ o3
+ ccccrcccccccrr<ag>ccccrcccccccrr<ag
+ aaaaraaaaaaarr>ga<aaaaraaaaaaarr>ga
+ ffffrfffffffrr dc ffffrfffffffrr dc
+ ggggrgggggggrr>fg<ggggrgggggggrr>fg
+)
+
+
+;---------------------------------------------------------------
+; Organ
+;---------------------------------------------------------------
+D ( l1 @0 FB7 o4 OP0 v96 ADSR4 
+ L
+ g&g g&g
+ e&e e&e
+ c&c c&c
+ d&d d&d
+)
+
+
+;---------------------------------------------------------------
+; Bass drum
+;---------------------------------------------------------------
+F ( o3 l8 @4 FB4 OP0 v118 RS2 ADSR2
+ [r1]16
+ L
+ [d r frr f drd rrdrf dd]7
+  d rfrrf rrfrrf rf dd
+)
+
+;---------------------------------------------------------------
+; Snare drum
+;---------------------------------------------------------------
+H ( o5 l8 @0 OP0 v115 ADSR2 RS3 M1 
+ [r1]16
+ L
+ [@v3 d r@v2frr@v6f @v3drd rrdr@v5f @v3dd]7
+ @v3 d r@v2frrf rrfrrf rf @v3dd
+)
+
+
+

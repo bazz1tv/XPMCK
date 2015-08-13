@@ -1,0 +1,54 @@
+;---------------------------------------------------------------
+#TITLE		Tetris, music C
+#GAME		Tetris
+#COMPOSER	Unknown
+#PROGRAMER	mic
+#OCTAVE-REV 	0
+;---------------------------------------------------------------
+
+
+; Global tempo
+ABEFG t150
+
+; Set up detuning and multipliers
+EFG OP1 D-1 MF3  OP2 D0 MF6  OP3 D2 MF1  OP4 D0 MF1
+
+; Define some envelopes
+@ADSR1 = {20 9 4 9 7}
+@ADSR2 = {27 20 7 4 11}
+@ADSR3 = {18 9 4 10 4}
+@ADSR4 = {12 4 1 8 0}
+
+
+E ( o4 k5 OP0 v90 ADSR1 FB1 @5
+ L
+ a>c+f+c+<g+>c+<a>c+
+ <f+>c+<f>c+<a>c+f+c+
+ <g+>c+<a>c+<f+>c+<f>c+
+ <a>c+
+ <af+>d<bg+bg+e>c+<af+>c+<bag+f+fc+fg+>c+<ba>c+f+c+
+ <g+>c+<a>c+<f+>c+<f>c+<a>c+f+c+<g+>c+<a>c+<f+>c+<f>c+<a>c+<af+>d
+ <bg+bg+e>e<b>c+ec+<aeg+ a2... >edc+<bag+a
+ b>c+<ab>dc+der<g+rab>c+r<br>c+rf+rd+rf+g+
+ arg+rf+ed+c+d+c c+2...e4... f+16.g16f+4&f+16edec+
+ d<b> f+4... g+16.a16g+4&g+16f+ff+d+fc+g+fc+fg+b>d<f>c+<fbf
+ arbag+af+32g+16 f+2&f+4&f+16&f+32<
+)
+
+
+
+F ( o3 k5 OP0 v94 ADSR3 FB2 @6
+ L
+ f+r>f+rfr<f+rg+r>c+rf+rdrc+rf+r<g+r>c+r<f+r
+>f+r<brer>er<ardr>dr<br>c+dc+<bag+f+r>f+r
+ fr<f+rg+r>c+rf+rdrc+rf+r<g+r>c+r<f+r>f+r<br
+ er>er<g+rar>c+rc+r<arer<ar>>c+eae<b>ec+
+ e<a>e<g+>e<a>eae<b>ec+e<a>e<g+>ec+ec+<a>f+d+cd+
+<g+>d+cd+c+rg+r<g+r>c+eg+e<b>e<a+>c+<f+>c+<a+>c+<br2r4r32
+>cd+<g+>d+cd+c+r2r4r32c+r<g+rfrc+rd+rfr
+ arbr>c+r<f+2...
+)
+
+
+
+

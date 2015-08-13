@@ -1,0 +1,101 @@
+;---------------------------------------------------------------
+#TITLE		Devil's Mask
+#GAME		Ninja Gaiden
+#COMPOSER	Unknown
+#PROGRAMMER	mic
+#OCTAVE-REV 	0
+;---------------------------------------------------------------
+
+#IFNDEF GEN
+#ERROR "This track is for SEGA Genesis only."
+#ENDIF
+
+@v3 = {14 11 7 3 1} 
+@v7 = {103 103:97}
+@v8 = {111 110:104:-2}
+
+; Define some envelopes
+@ADSR2 = {27 20 7 5 11}
+@ADSR3 = {25 9 19 2 26} 
+@ADSR4 = {12 4 1 8 0}
+@ADSR6 = {29 2 1 18 18}
+@ADSR7 = {31 17 6 7 14}
+
+; Global tempo
+ABCDEFGHIJ t135 EPOF MPOF
+
+; Set up detuning and multipliers
+EFGH OP1 D-3 MF2  OP2 D0 MF7  OP3 D1 MF4  OP4 D2 MF1
+I     OP1 D1                  OP3 D-1 MF2
+
+@EN0 = {-1}
+
+
+;------
+; Bass
+;------
+E ( l1 o3 @3 FB1 OP0 v105 ADSR6 D-1 MF2 OP3 D-1 MF1
+  rr
+  L o3
+  cc
+ <g+g+a+g
+ [>[c16.r32]16<[g+16.r32]16
+  [a+16.r32]8[g16.r32]8>[c16.r32]16
+ <[g+16.r32]16[a+16.r32]8[g16.r32]8]2
+)
+
+
+
+;--------
+; Melody 
+;--------
+F l16 @7 FB4 OP0 ADSR3 D0 OP3 D0 MF2 OP4 D-1 MF3 OP0 v100
+G l16 @7 FB4 OP0 ADSR3 D0 OP3 D0 MF2 OP4 D-1 MF3 OP0 v99 r8.
+FG (
+ o6 d+rd+8[c32r32]2d8d8<gga+a+gg >d+<<g> >d+<<a+>>c<c >d8r<cg<g>a+<a+>gc
+ L 
+ o5
+[>d+<<g> >d+<<a+>>c<c >d8r<cg<g>a+<a+>gc]4
+>f<<f>>f<<g>>d+<<a+>>dr8 <<a+>a+<f>>c<<g>a+<a+>>f<<d>>f<<f>>d+<<g>>dr8 <<g>g<d>>g<<f>>d<<g
+)
+
+
+;-----------
+; Kick drum
+;-----------
+I ( o3 l16 @4 FB4 OP0 v120 ADSR2 EN0
+  r1r1
+  L
+  [cr8.]23 r4
+ [[cr8. r4]8
+  [cr8. r4]3 r2 [cr8. r4]4
+  [cr8. r4]4 [cr8. r4]3 r2]2
+)
+
+
+;------------
+; Snare drum 
+;------------
+J ( o3 l16 @7 FB7 OP0 D-3 MF2 v124
+   OP1 D1 v119
+   OP4 MF5 D-3 v89
+   OP2 v88 D-3 MF5
+   OP0 ADSR7 EN0
+ r1r1
+ L
+ [r4]23 drdd
+[[r4 | dr8.]8 drdd
+ [r4 dr8.]3 ddrddddd [r4 dr8.]4
+ [r4 | dr8.]4 drdd [r4 dr8.]3 ddrddddd]2 
+)
+
+;----------
+; PSG drum
+;----------
+D ( o7 @0 l8
+ @v3
+ r1r1
+ L
+ [f]7e
+)
+

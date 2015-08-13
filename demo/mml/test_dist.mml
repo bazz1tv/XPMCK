@@ -1,0 +1,17 @@
+#TITLE POKEY distortion test
+#PROGRAMMER mic
+
+AB t125 l4 v10
+
+A ( L o4
+ @0 cdef r
+ @1 cdef r
+ @2 cdef r
+ @3 cdef r
+ @4 cdef r
+ @5 cdef r
+ @6 cdef r
+ @7 cdef r
+)
+
+

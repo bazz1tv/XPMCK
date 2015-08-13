@@ -1,0 +1,220 @@
+#TITLE		Opening Title
+#GAME		Legend of Zelda
+#COMPOSER	Koji Kondo, Maktone, Natan1
+#PROGRAMMER	mic
+#OCTAVE-REV 	0
+
+#IFNDEF PCE
+#ERROR "This track is for PCE/TGX only."
+#ENDIF
+
+; Drums
+@XPCM0 = {"..\samples\zsam4.wav" 6992 90}  ;c
+@XPCM2 = {"..\samples\zsam5.wav" 6992 90}  ;d
+@XPCM4 = {"..\samples\zsam8.wav" 6992 90}  ;e
+@XPCM5 = {"..\samples\zsam4.wav" 6992 50}  ;f
+@XPCM7 = {"..\samples\zsam5.wav" 6992 55}  ;g
+@XPCM9 = {"..\samples\zsam8.wav" 6992 66}  ;a
+@XPCM11 = {"..\samples\zsam8.wav" 6992 40}  ;b
+
+@v0 = {12 11 10 0}
+@v1 = { 30 31 31 31 31 30 28 26 25 24 23 } ' 3
+@v3 = { 30 31 31 31 30 28 26 25 24 23 22 21 20 19} ' 3 - 2
+@v2 = {29 : 15 ' 3}
+@v4 = {28 : 13 ' 3}
+@v5 = {9 8 8 7 7 6 6 5 5 4 4 3} ' 2 * 3
+
+@EN38 = { 0 3 5 | -8 3 5}
+@EN47 = { 0 4 3 | -7 4 3}
+
+@CS0 = { 0xF4 }
+@CS1 = { 0x4F }
+@CS2 = {| 0xF0 0xE8 0xDD 0x8E 0x0F 0x8E 0xDD 0xE8 } ' 2 (EVERY-NOTE)
+@CS3 = { 0xEE }
+
+@WT0 = { ; Saw wave
+0 : 31
+}
+
+@WT2 = { ; Momotaro bass
+2 5 10 12 14 14 15 15
+15 15 14 14 12 10 5 2
+2 3 5 7 9 11 13 15
+15 13 11 9 7 5 3 2
+} * 2
+
+@WT3 = {  ; 75% square
+31 ' 24
+0 ' 8
+}
+
+@WT5 = {  ; 12.5% square
+31 ' 4
+0 ' 28
+}
+
+@WT6 = {
+8 11 12 15 16 18 19 20
+21 21 28 26 25 24 23 22
+21 20 9 9 8 7 7 8
+9 10 11 12 11 10 9 8
+}
+
+@WT7 = {
+8 8 7 7 6 6 12 16
+20 25 26 26 26 25 24 23
+23 22 21 21 20 20 19 19
+19 18 16 15 14 13 12 11
+}
+
+@WT8 = {
+8 7 7 6 6 16 25 25
+16 6 5 4 3 2 0 0
+1 3 5 7 16 31 31 31
+28 26 24 7 12 15 20 12
+}
+
+
+ABCDEF t95
+
+
+
+E t95 WT5 o4 q6 @v5 CS2
+E (
+ l32 
+ > EN47[rrrgggr8rr]2 [rrrfffr8rr]2
+ EN38[rrrgggr8rr]2 
+ ENOF rr L r8 t85 r8. t78 r4. t95 < 
+ 
+    r g b >d g b r b g rrr <
+    r g b >d g b r b g d <b g
+    r f a >d f a r a f rrr <
+    r f a >d f a r a f d+ <a f
+    r g a+ >d+ g a+ r a+ g rrr <
+    r g a+ >d+ g a+ r a+ g d+ < a+ g
+    r f a+ >d f a+ r a+ f rrr <
+    r f a+ >d f a+ r a+ f d < a+ f
+    ;;3
+    r g+ >c d+ g+ >c r c <g+ rrr <
+    r g+ >c d+ g+ >c r c <g+ d+ c <g+
+    r g >d a+ g >d r d <a+ rrr <
+    r g a+ >d g a+ r a+ g d <a+ g
+    r a >c+ e a >c+ r c+ <a rrr <
+    rrrr
+    r4rr
+    ;; 8
+    r2r8rr 
+    r g b >d g b r b g rrr <
+    r g b >d g b r b g d <b g
+    r f a >d f a r a f rrr <
+    ;; 5
+    r f a >d f a r a f d <a f
+    r g a+ >d+ g a+ r a+ g rrr <
+    r g a+ >d+ g a+ r a+ g d+ <a+ g
+    r g a+ r r2 r8
+    ;; 6
+    r1r1
+    ;; 7
+    r1r1
+    ;; 4
+    r1r4rr
+)
+
+
+
+; -- Melody 1 --
+B t95 l16 o4 q7 @v1 WT6 CS0
+B (
+ g2ggggg8fg4&gggggg8fg4&g
+ ggggg. L d32d t85 d.d32d t78 d.d32dd.d. t95    
+ o4
+ g8.d4&dgg32ab32>cd2
+ ddd+f g4.. gggfd+f8d+d4.d8.
+ ;; --3--
+ c.c32dd+4.d.c.<a+.a+32>cd2&d<a.a32b>c+4.
+ ;; --4--
+ e8.d.
+ ;; --8--
+ <[d32dd.]3 d.g8.d4&dgg32ab32>cd2
+ ;; --5--
+ ddd+fg2&gg8.g8.f+4.d8.
+ ;; --6--
+ d+2&d+ g8.f+8.d4.d8.d+2&d+
+ ;; --7--
+ g8.f+8.d4.<b8.>c2&cd+8.d8.<a+4.
+ ;; --4--
+ g8.a.a32b>c+4.e8.d. <
+)
+
+
+; -- Melody 2 --
+C  t95 l16 o3 q-7 WT7 @v3 CS1
+C (
+ b2bbbba8aa4&aaaaaa+8a+a+4&a+
+ a+a+a+a+a+. L f+32f+ t85 f+.f+32f+ t78 f+.f+32f+f+.f+. t95 
+ 
+ b8.bbab8bb32>cd32d+f8gg32a
+ b32>cd8d<fgaa+8d+d+32fg32aa+a+8a+aga+8fffd+f8ffd+f
+ ;; --3--
+ d+.d+32dd+8d+32f32g8.f.d+.d.d32cd.dd+32f8.d+.d.c+8.c+8de8
+ ;; --4--
+ e32f+32g.a.f+.
+ ;; --8--
+ <[f+32f+f+.]3 f+.b8.bbab8bb32>cd32d+f8gg32a
+ ;; --5--
+ b32>cd8d<fgaa+8d+d+32fg32aa+8.>c+8.c8.<a4.f+8.
+ ;; --6--
+ g+2&g+a+8.a8.f+4.f+8.g+2&g+
+ ;; --7--
+ a+8.a8.f+4.f+8.d+2&d+g+8.g8.d4.
+ ;; --4--
+ <a8.>c+8.c+8de8e32f+32g.a.f+. <
+)
+
+
+; -- Bass --
+A t95 @v2 o2 l16 WT8 q5 CS0
+F t95 @v4 o2 l16 WT5 q5 CS1
+AF ( CS0
+ ;o2
+ [g8.ggg]2 [f8.fff]2 [d+8.d+d+d+]2 d+8. L  t85 d8. t78 d8.e.f+. t95 
+ 
+ g8.ggfg8.g8.f8.f
+ fd+f8.f8.d+8.d+d+c+d+8.d+8.a+8.a+a+g+a+8.a+8.
+ ;; --3--
+ g+8.g+g+g g+8.g+g+g+ g8.ggf g8.ggg a8.aag a8.
+ ;; --4--
+ aaad8.
+ ;; --8--
+ d8.d8.e.f+.g8.ggfg8.g8.f8.f
+ ;; --5--
+ fd+f8.f8.d+8.d+d+c+d+8.d+8.d8.ddcd8.d8.
+ ;; --6--
+ c+ga+>c+ga+>c+4.d8.<<dddd4.c+ga+>c+ga+>c+4.
+ ;; --7--
+ d8.<<dddd4.g+8.g+g+gg+8.g+g+g+g8.g
+ ;; --4--
+ gfg8.ggga8.aaaa8.aaa d8.
+)
+
+
+; -- PCM drums --
+D ( o0 M2 l16 t95 CS3
+ [d8.cee]6 d. L f32c t85 f.c. t78 d.c32cc.d. t95  
+ [d8.c8gd8.c8.]4
+ [d8.c8gd8.c8.]2 d8.c8gd8.
+ ;; --4--
+ c8.d8.
+ ;; --8--
+ c.c32cd.d32cc32b32a32c32e32e32 d8.c8gd8.c8. d8.c8
+ ;; --5--
+ gd8.c8. d8.c8gd8.c8. d8gcfgd8.c8.
+ ;; --6--
+ d8ee8ee8gcfgd8.c8.d8.c8.d8ee8ee8
+ ;; --7--
+ gcfgd8.c8.d8.c8gd8ec8ed8ec8gd8ec8
+ ;; --4--
+ ed8ec8gd8ec8ed8ec8.d.
+ 
+)
+

@@ -1,0 +1,1 @@
+..\..\bin\xpmc.exe -cps ..\mml\%1.mml %1.vgz

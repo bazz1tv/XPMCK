@@ -1,0 +1,84 @@
+#TITLE 		Nails of Lucifer (Act 5-3)
+#GAME		Ninja Gaiden
+#COMPOSER 	Unknown
+#PROGRAMER 	mic
+#INCLUDE	"common.mml"
+#GB-NOISE 1
+#GB-VOLUME-CONTROL 1
+
+#IFDEF GBC
+@v2 = {3 3 3 3 3 2}
+#ELSE
+@v2 = {9 9 8}
+#ENDIF
+
+@v0 = {10 10 9 8 7}
+@v1 = {8 7 6 5}
+@v3 = {10 8 6 4 2 0}
+@v4 = {11 9 8 7 5 3 1}
+$v0 { @v0 }
+$v1 { @v1 }
+$v3 { @v3 }
+$v4 { @v4 }
+
+@MP0 = {1 2 1}
+
+@CS0 = {-16 }	; Pan left
+@CS1 = {16}	; Pan right
+
+; Macros for melody and bass
+$p0 { g+gg+16 [f16a+16f16>c16<f16>c+c<a+g+g+16]3 f16ga+g+gf16g+16c8 }
+$p1 { g+16 [f16a+16f16>c16<f16>c+c<a+g+g+16]3 f16ga+g+gf16g+16c16 }
+$p2 { <a+>cc+16d+16<a+>cc+d+f16c+16d+fgg+a+16f16ga+g+fd+16g16c16 }
+$p3 { fgg+16 [f16a+16f16>c16<f16>c+c<a+g+g+16]3 f16ga+g+gf16g+16c16 }
+$p4 { [f]8[d+]8[c+]8[c]7 }
+$p5 { c[d+]4[c+]4<[a+]4>d+d+f }
+
+; Drum macros. Default length is one 16th note
+$s(16) { $v4() c+%1% }
+$t(16) { $v3() e%1% }
+
+; Pattern used for melody and bass
+\1 {
+t64 l32 q7
+$p0() $p1() $p2() $p3()
+$p3() $p2() $p3() $p3() $p2()
+}
+
+ABCD t64
+
+
+A o4 l32 $v0() q7 CS0
+B o4 l32 q7 CS1 $v1()
+B r32
+AB L
+AB \1()
+
+
+
+C ( o3 l16 @v2 MP0
+#IFDEF GBC
+ WT0
+#ENDIF
+ L
+ rf8.f8ff8d+8.d+8d+d+8c+8.c+8c+c+8c8.c8cc8
+ $p4() $p5() c$p4() c$p4()
+ $p5() c$p4() c$p4() $p5()
+)
+
+
+; Drums
+#IFDEF GBC
+D ( o4 l16 $v3() @0
+#ELSE
+D ( o7 l16 $v3() CS1 @1
+#ENDIF
+ L
+ r16[$s(8.)$s(8)$s()$t()$s()]3 $s(8.)$s(8)$s()$t()
+ [$t() [$s(8)$t()$s(8)$s()$t()$s()]3 $s(8)$t()$s(8)$s()$t()
+ $t()$s(8)$t()$s(8)$s()$t()$s()$s(8)$t()$s(8)$s()$t()
+ $t() [$s(8)$t()$s(8)$s()$t()$s()]3 $s(8)$t()$s(8)$s()$t()]2
+ $t() [$s(8)$t()$s(8)$s()$t()$s()]3 $s(8)$t()$s(8)$s()$t()
+ $t()$s(8)$t()$s(8)$s()$t()$s()$s(8)$t()$s(8)$s()$t()
+)
+

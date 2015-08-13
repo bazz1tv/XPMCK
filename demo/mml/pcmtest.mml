@@ -1,0 +1,69 @@
+#PROGRAMMER	mic
+#IFNDEF GEN
+#ERROR "This track is for SEGA Genesis only."
+#ENDIF
+
+; Load three samples. They are already in 8 kHz so you could
+; specify 0 as the resampling parameter (0 = no resampling).
+@XPCM0 = {"..\samples\kick22_8khz_8bit_mono.wav" 8000}
+@XPCM2 = {"..\samples\snare12_8khz_8bit_mono.wav" 8000}
+@XPCM4 = {"..\samples\hihat7_8khz_8bit_mono.wav" 8000}
+
+@v0 = {12 11 10 0}
+
+@ADSR0 = {28 10 6 7 4}
+@ADSR1 = {22 15 8 7 9}
+@MOD0 = {3 2 0}
+
+;-----------
+; First song
+;-----------
+
+DEJ t120
+
+; FM bass
+E ( @0 FB1 OP0 v102 D-1 MF4 ADSR1 MOD0 AM1
+ L
+ o1 l32  
+ [f+rf+rf+rf+rf+rf+rf+r r16 f+rf+r r16 f+rf+rf+rf+r r16]4
+ [q8drdrdrdrdrdrdr r16 drdr r16 drdrdrdr r16]2
+)
+
+
+; PSG drums
+D o4 l32 
+D L
+D @v0 r8crrrr8crcrc+rrrr4crrr
+
+
+; PCM drums
+J o0 M2		; Set mode 2 (PCM mode)  
+J L
+J l16 cr8.dr8e32r32r8crdr8.
+
+
+
+#SONG	2
+
+;------------
+; Second song
+;------------
+
+EJ t150
+
+; FM bass
+E ( @3 FB1 OP0 v104 D-2 MF3 ADSR0
+ L
+ l2 o1
+ [g+&g+8]2  g+4.g+8f+4
+ [g+&g+8]2  g+4.g+8f+4
+ [f+&f+8]2  g+4.g+8f+4
+ d+&d+8 d+4 d+8e2r2
+)
+
+
+; PCM drums
+J o0 M2 l4 
+J L
+J [cd8.c16c8c16c16d]3 cd8.c16c8c8d16d16d16d16
+

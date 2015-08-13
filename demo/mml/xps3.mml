@@ -1,0 +1,118 @@
+#TITLE		xps introtune #3
+#COMPOSER	Maktone
+#PROGRAMER	mic
+#OCTAVE-REV 	0
+#PAL
+
+#IFNDEF GEN
+#ERROR "This track is for SEGA Genesis only."
+#ENDIF
+
+; Global tempo
+ABCDEFGHIJ t72 EPOF MPOF
+
+; Set up detuning and multipliers
+EFGHJ OP1 D-3 MF3  OP2 D0 MF13  OP3 D3 MF3  OP4 D1 MF1
+I     OP1 D1                    OP3 D-1 MF2
+
+; Define some envelopes
+@ADSR1 = {20 9 4 9 7}
+@ADSR2 = {27 20 7 4 11}
+@ADSR3 = {18 9 4 10 4}
+@ADSR4 = {12 4 1 8 0}
+@ADSR5 = {20 5 12 14 6}
+
+@EN27 = { 0 2 5 | -7 2 5}
+@EN37 = { 0 3 4 | -7 3 4}
+@EN38 = { 0 3 5 | -8 3 5}
+@EN47 = { 0 4 3 | -7 4 3}
+@EN49 = { 0 4 5 | -9 4 5}
+@EN57 = { 0 5 2 | -7 5 2}
+@EN58 = { 0 5 3 | -8 5 3}
+@EN59 = { 0 5 4 | -9 5 4}
+
+@MP1 = {4 26 4}
+@MP2 = {0 48 2}
+
+
+@v00 = {108 107 106 104}
+@v01 = {90 105 102 99 92 92 92 92 92 86 86 86 82 82 82 82 78 80}
+@v60 = {100 100 100 100 95 95 95 95 95 95 90 90 90 90 90 85}
+
+@v10 = {4 6 6 3 3 2 1}
+@v11 = {8 7 3 1}
+
+@v50 = {95} 
+@v51 = {97} 
+@v52 = {99} 
+@v53 = {101} 
+
+@EP1 = {0 0 0 0 | -3}
+@EP2 = {-1 2 -1 0 -1 2 -1 0}
+
+
+E ( @4 FB6 OP3 D-2 MF1 OP4 D-3 OP2 MF8 OP0 RS2 ADSR5
+ r2
+ L
+ o5 l32 @v00
+ [r4r4]7
+ EP2 r4 d+16fd+gfa+g 
+ o6 c8<g>c<fgd+ffd+gfa+g >c8.<a+16g>c<fgd+fgd+ a+8.g16a+gga+fggf a+8.g16fa+gfggf16 ;1
+ g8dgfdgffgdffd g8.f16gga+gfa+df f8.d16ffgfa+gga+ f8.d16fdgfa+ga+16 ;3
+ o6 c8<g>c<fgd+ffd+gfa+g >c8.<a+16g>c<fgd+fgd+ a+8.g16a+gga+fggf a+8.g16fa+gfggf16 ;1
+ g8dgfdgffgdffd g8.f16gga+gfa+df f8.d16ffgfa+gga+ f8.r16rrrrrrr16 ;3
+)
+
+
+F ( @1 FB0 OP2 D0 MF3 OP0 ADSR3
+ l32 o3 v106  
+ c16gc>c<gc>c<cca+c> EP1 c8 EPOF
+ L
+ l32 o3 v106  
+ [c16gc>c<gc>c <cca+c>c<a+c>c<]2 [<a+16>f<a+>a+f<a+>a+<a+a+>g+<a+>a+g+<a+>a+]2
+ [<g16>d<g>gd<g>g<gg>f<g>gf<g>g]2 <f16>c<f>fc<f>f<ff>d+<f>fd+<f>f
+ <f16>c<f>fc<f>f<ff>d+<f>fd+<f>f
+ c16gc>c<gc>c<cca+c>c<a+c>c <c16gc>c<gc>c<cca+c>c<a+c>c ;1
+ <<a+16>f<a+>a+f<a+>a+<a+a+>g+<a+>a+g+<a+>a+ <a+16>f<a+>a+f<a+>a+<a+a+>g+<a+>a+g+<a+>a+
+ <g16>d<g>gd<g>g<gg>f<g>gf<g>g <g16>d<g>gd<g>g<gg>f<g>gf<g>g ;3
+ <f16>c<f>fc<f>f<ff>d+<f>fd+<f>f <f16>c<f>fc<f>f<ff>d+<f>fd+<f>f
+ c16gc>c<gc>c<cca+c>c<a+c>c <c16gc>c<gc>c<cca+c>c<a+c>c ;1
+ <<a+16>f<a+>a+f<a+>a+<a+a+>g+<a+>a+g+<a+>a+ <a+16>f<a+>a+f<a+>a+<a+a+>g+<a+>a+g+<a+>a+
+ [<g16>d<g>gd<g>g<gg>f<g>gf<g>g]2 <f16>c<f>fc<f>f<ff>d+<f>fd+<f>f <f16>c<f>fc<f>f EP1f8.EPOF fg
+)
+
+G ( o5 l32 @6 FB0 OP0 @v60 ADSR1
+ r4..EN57a+a+ENOF
+ L
+ o6 l32 
+ [EN37 ccccrrcc ENOFEN27 ccccrrcc ENOF]2 < [EN47 a+a+a+a+rra+a+ ENOFEN57 a+a+a+a+rra+a+ ENOF]2
+ [EN37 ggggrrgg ENOFEN27 ggggrrgg ENOF]2 EN47 ffffrrff ENOFEN57 ffffrrff ENOF
+ EN47 ffffrrff ENOFEN57 ffffrrff ENOF
+ > [EN37 ccccrrcc ENOFEN27 ccccrrcc ENOF]2 < [EN47 a+a+a+a+rra+a+ ENOFEN57 a+a+a+a+rra+a+ ENOF]2 ;1
+ [EN37 ggggrrgg ENOFEN27 ggggrrgg ENOF]2 [EN47 ffffrrff ENOFEN57 ffffrrff ENOF]2
+ > [EN37 ccccrrcc ENOFEN27 ccccrrcc ENOF]2 < [EN47 a+a+a+a+rra+a+ ENOFEN57 a+a+a+a+rra+a+ ENOF]2 ;1
+ [EN37 ggggrrgg ENOFEN27 ggggrrgg ENOF]2 EN47 ffffrrff ENOFEN57 ffffrrff ENOF EN47fENOF r4.r32 EN57ffENOF
+)
+
+H ( @3 FB6 OP0 ADSR1
+ o5 l32 @v10 
+ r4.rr
+ L
+ r1r1 r2
+ EN37 @v50cd+gd+@v51cd+gd+@v52cd+gd+@v53cd+gd+@v53cd+gd+@v52cd+gd+@v51cd+gd+@v50cd+gd+
+ @v50<a+>dfd@v51<a+>dfd@v52<a+>dfd@v53<a+>dfd@v53<a+>dfd@v52<a+>dfd@v51<a+>dfd@v50<a+>dfd
+ r1r1
+ @v50cd+gd+@v51cd+gd+@v52cd+gd+@v53cd+gd+@v53cd+gd+@v52cd+gd+@v51cd+gd+@v50cd+gd+
+ @v50<a+>dfd@v51<a+>dfd@v52<a+>dfd@v53<a+>dfd@v53<a+>dfd@v52<a+>dfd@v51<a+>dfd@v50<a+>dfd
+ r1r1 ENOF
+)
+
+I o2 l16 @4 FB3 OP0 v121 ADSR2 
+I r4.ee
+I L
+I [rrer]8 rrerrrer [rrer]36 rrrrrrer
+
+D o7 l16 @0 v11 q6  
+D r4.ee
+D L
+D [rrer]8 rrerrrer [rrer]36 rrrrrrer

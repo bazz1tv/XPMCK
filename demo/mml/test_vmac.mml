@@ -1,0 +1,19 @@
+#INCLUDE "common.mml"
+
+#IFDEF PCE
+@v0 = {31 : 0}
+#ELSE
+@v0 = {15 : 0} ' 2
+#ENDIF
+
+        
+B t134 o4 l2 @v0 
+#IFDEF AT8
+B @5
+#ELSIFDEF PCE
+B WT3
+#ELSE
+B @0
+#ENDIF
+B L
+B cdef 

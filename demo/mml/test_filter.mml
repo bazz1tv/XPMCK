@@ -1,0 +1,17 @@
+#TITLE POKEY filter test
+#PROGRAMMER mic
+
+AC t150
+
+@EP0 = {| -1 0}
+
+A v10 l4 @5 
+A L
+A o3 FTOF cdef > cdef > cdef > cdef
+A o3 FT0  cdef > cdef > cdef > cdef
+
+
+C o4 v0 l4 @5 
+C L
+C rrrr rrrr rrrr rrrr
+C o5 EP0 c1&c1 e1&e1 ; Do a frequency sweep that will drive the filter

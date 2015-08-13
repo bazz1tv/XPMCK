@@ -1,0 +1,1396 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "DTD/xhtml1-transitional.dtd">
+<html><head><title>XPMCK manual</title>
+	<style type="text/css">
+	i.mml {
+
+		font-style: normal;
+		font-family: courier;
+		font-size: 14px;
+		color: #006;
+	}
+	i.mmlparm {
+		font-style: normal;
+		font-family: courier;
+		font-size: 12px;
+		color: #806;
+	}
+	pre {
+		font-family: arial;
+		font-size: 13px;
+	}
+	</style>
+</head><body bgcolor="#ffffff">
+
+<big><b>XPMCK - Cross Platform Music Compiler Kit</b></big><br>
+<pre>
+Mic, 2011
+
+Website: <a href="http://jiggawatt.org/muzak/xpmck/">http://jiggawatt.org/muzak/xpmck/</a>
+Contact: micol972@gmail.com
+
+
+<b>What you will need</b>
+
+	Some basic knowledge of MML. For syntax information in english, see these guides:
+
+	<a href="http://www.nullsleep.com/treasure/mck_guide/">http://www.nullsleep.com/treasure/mck_guide/</a>
+	<a href="http://www.geocities.co.jp/Playtown-Denei/9628/mck/mckc-e.txt">http://www.geocities.co.jp/Playtown-Denei/9628/mck/mckc-e.txt</a> (<a href="http://jiggawatt.org/muzak/mckc-e.txt">mirror</a>)
+
+	They are for NES implementations of MML compilers, but the general syntax is the same.
+
+	You may also want some information about the audio capabilities of some of the systems
+	supported by XPMCK:
+
+	<a href="http://nocash.emubase.de/pandocs.htm#soundcontroller">Gameboy</a>
+	<a href="http://www.cx5m.net/fmunit.htm">YM2151 (CPS-1)</a>
+	<a href="http://www.smspower.org/dev/docs/sound/SN76489-20030421.txt">SN79489 (SMS/GG/CLV)</a>
+	<a href="http://www.smspower.org/maxim/docs/ym2413am/">YM2413 (SMS)</a>
+	<a href="http://www.smspower.org/maxim/docs/ym2612/">YM2612 (Genesis)</a>
+	<a href="http://www.vdsteenoven.com/aquarius/psgprog.html">AY-3-8910 (CPC/KSS)</a>
+	<a href="http://en.wikipedia.org/wiki/Konami_SCC">Konami SCC (KSS)</a>
+	<a href="http://krap.pl/mirrorz/atari/homepage.ntlworld.com/kryten_droid/Atari/800XL/atari_hw/pokey.htm#Audio">Pokey (Atari 8-bit)</a>
+	<a href="http://www.magicengine.com/mkit/doc_hard_psg.html">HuC6280 (PCE)</a>
+
+	WLA-DX is required for building ROMs with the supplied playback libraries for SEGA Master System,
+	Game Gear, ColecoVision, Amstrad CPC, Atari 8-bit, Gameboy and Commodore 64 - as well as KSS, SGC
+	and SID files.
+	You can download it from the official WLA-DX website:
+
+	<a href="http://www.villehelin.com/wla.html">http://www.villehelin.com/wla.html</a> (or <a href="http://www.smspower.org/forums/viewtopic.php?t=10779">here</a>, or <a href="http://jiggawatt.org/badc0de/wladx-9.5-20080814-win32-bin.zip">here</a>)
+
+	The Genesis Z80 driver source builds with WLA-DX, although it isn&#39;t necessary to rebuild
+	it unless you want to make changes to it.
+
+	To build the SEGA Genesis version of the player you need the GNU binutils for M68000.
+	You can find prebuilt binaries for Windows <a href="http://jiggawatt.org/badc0de/xgcc.htm">here</a>.
+
+
+<b>Using the compiler</b>
+
+	The compiler itself (XPMC) is a command line application that converts MML into assembly code files
+	containing song data in a format that the playback libraries can read efficiently. It can also export
+	directly to VGM/VGZ for some targets. There is also a GUI for the compiler included (MCGUI), but it&#39;s
+	rather limited in features.
+
+	Although a binary version of the compiler is only supplied for Win32, it should be possible run the
+	source code version under Linux, BSD and Mac OSX using the Euphoria interpreter (download <a href="http://openeuphoria.org/">here</a> or <a href="http://www.rapideuphoria.com/">here</a>).
+	To output compressed VGZ files on Linux/BSD/OSX you&#39;ll also need an copy of libz.so (may also
+	require some small changes inside zlib.e).
+
+	The compiler requires you to supply it with a target, an input file and optionally an output file.
+	Below is a full list of command line options for the compiler:
+<a name="cmd_options"></a>
+	-h 		Show help
+	-v		Verbose mode
+	-w		Treat warnings as errors
+	-at8		Output data suitable for Atari 8-bit computers (400/800/XL/XE)
+	-c64		Output data suitable for the Commodore 64
+	-clv		Output data suitable for the ColecoVision
+	-cpc		Output data suitable for the Amstrad CPC
+	-cps		Output data suitable for the CPS-1 (YM2151)
+	-gbc		Output data suitable for the Gameboy / Gameboy Color
+	-gen		Output data suitable for the SEGA Genesis
+	-kss		Output data suitable for KSS files
+	-sgg		Output data suitable for the SEGA Game Gear
+	-sms		Output data suitable for the SEGA Master System
+
+	If no output filename is specified it will be given the name <inputFilename>.asm by
+	default (or .s when the target is -gen).
+
+	If the output filename has a .vgm extension and the target is cps, gen, sms or sgg the
+	compiler will generate a .vgm file (uncompressed) instead of an .asm file.
+	If the output filename has a .vgz extension and the target is cps, gen, sms or sgg the
+	compiler will generate a .vgz file (compressed) instead of an .asm file.
+
+	Examples:
+
+		xpmc.exe -cps foo			<i class="mml">; Compile the file foo.mml into foo.vgm (only vgm output is supported for CPS-1).</i>
+
+		xpmc.exe -sgg foo.mml bar.vgz	<i class="mml">; Compile the file foo.mml into bar.vgz.</i>
+
+		xpmc.exe -gbc -v foo.mml		<i class="mml">; Compile the file foo.mml into foo.asm, verbose mode.</i>
+
+	There is example code and batch files in the \demo subdirectories for compiling your MML
+	into playable files in several more or less popular formats - including .GBS, .VGM, .SGC and .SID.
+
+
+
+<b>P(P)MCK commands supported in XPMCK</b>
+<i class="mml">
+	&, ^, <, >, <a href="#repeat_loop">[]</a>, {}, <a href="#detune">D</a>, <a href="#transpose">K</a>, <a href="#length">l</a>, o, <a href="#cutoff">q</a>, t, <a href="#volume">v</a>, v-, v+, <a href="#algorithm">@</a>, @@, @EN, @EP, @MP, <a href="#cutoff">@q</a>, <a href="#volume">@v</a>
+</i>
+
+<b>New commands added in XPMCK</b>
+<i class="mml">
+	<a href="#adsr">@ADSR</a>, <a href="#pan">@CS</a>, <a href="#envelope_speed">@es</a>, <a href="#feedback_macro">@FBM</a>, <a href="#filter">@FT</a>, <a href="#modulator">@MOD</a>, <a href="#waveform">@WT</a>, <a href="#waveform_macro">@WTM</a>, <a href="#xpcm">@XPCM</a>, <a href="#pulse_width_macro">@pw</a>, <a href="#tone_envelope">@te</a>, <a href="#volume_envelope">@ve</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#repeats">&#39;</a>, <a href="#pattern">\</a>, <a href="#multiline">(</a>, <a href="#amplitude_mod">AM</a>, <a href="#feedback">FB</a>, <a href="#alt_length">k</a>, <a href="#mode">M</a>, <a href="#detune_mult">MF</a>, <a href="#noise_speed">n</a>, <a href="#operator">OP</a>, <a href="#pulse_width">pw</a>, <a href="#ring_mod">RING</a>, <a href="#rate_scale">RS</a>, <a href="#alt_rest">s</a>, <a href="#SSG_EG">SSG</a>, <a href="#hard_sync">SYNC</a>, <a href="#direct_write">w</a>
+</i>
+
+<b>New commands by target</b>
+
+	<i>Amstrad CPC</i>
+	<i class="mml"><a href="#envelope_speed">@es</a>, <a href="#tone_envelope">@te</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#alt_length">k</a>, <a href="#noise_speed">n</a>
+
+	</i><i>Atari 8-bit</i>
+	<i class="mml"><a href="#filter">@FT</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#alt_length">k</a>, <a href="#mode">M</a>, <a href="#detune_mult">MF</a>
+
+	</i><i>ColecoVision</i>
+	<i class="mml"><a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#alt_length">k</a>
+
+	</i><i>Commodore 64</i>
+	<i class="mml"><a href="#adsr">@ADSR</a>, <a href="#filter">@FT</a>, <a href="#pulse_width_macro">@pw</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#alt_length">k</a>, <a href="#pulse_width">pw</a>, <a href="#ring_mod">RING</a>, <a href="#hard_sync">SYNC</a>
+
+	</i><i>CPS-1</i>
+	<i class="mml"><a href="#adsr">@ADSR</a>, <a href="#pan">@CS</a>, <a href="#feedback_macro">@FBM</a>, <a href="#modulator">@MOD</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#amplitude_mod">AM</a>, <a href="#feedback">FB</a>, <a href="#alt_length">k</a>, <a href="#mode">M</a>, <a href="#detune_mult">MF</a>, <a href="#operator">OP</a>, <a href="#rate_scale">RS</a>
+
+	</i><i>Gameboy / Gameboy Color</i>
+	<i class="mml"><a href="#pan">@CS</a>, <a href="#waveform">@WT</a>, <a href="#waveform_macro">@WTM</a>, <a href="#tone_envelope">@te</a>, <a href="#volume_envelope">@ve</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#alt_length">k</a>
+
+	</i><i>KSS</i>
+	<i class="mml"><a href="#pan">@CS</a>, <a href="#envelope_speed">@es</a>, <a href="#waveform">@WT</a>, <a href="#tone_envelope">@te</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#alt_length">k</a>, <a href="#noise_speed">n</a>
+
+	</i><i>PC-Engine / TurboGrafx</i>
+	<i class="mml"><a href="#pan">@CS</a>, <a href="#modulator">@MOD</a>, <a href="#waveform">@WT</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#alt_length">k</a>
+
+	</i><i>SEGA Genesis / Megadrive</i>
+	<i class="mml"><a href="#adsr">@ADSR</a>, <a href="#pan">@CS</a>, <a href="#feedback_macro">@FBM</a>, <a href="#modulator">@MOD</a>, <a href="#xpcm">@XPCM</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#amplitude_mod">AM</a>, <a href="#feedback">FB</a>, <a href="#alt_length">k</a>, <a href="#mode">M</a>, <a href="#detune_mult">MF</a>, <a href="#operator">OP</a>, <a href="#rate_scale">RS</a>, <a href="#SSG_EG">SSG</a>
+
+	</i><i>SEGA Game Gear</i>
+	<i class="mml"><a href="#pan">@CS</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#alt_length">k</a>
+
+	</i><i>SEGA Master System</i>
+	<i class="mml"><a href="#adsr">@ADSR</a>, <a href="#tone_envelope">@te</a>, <a href="#volume_envelope">@ve</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#amplitude_mod">AM</a>, <a href="#feedback">FB</a>, <a href="#alt_length">k</a>, <a href="#mode">M</a>, <a href="#detune_mult">MF</a>, <a href="#rate_scale">RS</a>
+	</i>
+
+<b>Specifications and limitations by target</b>
+
+	<a href="#cpc_info">Amstrad CPC</a>
+	<a href="#clv_info">ColecoVision</a>
+	<a href="#c64_info">Commodore 64</a>
+	<a href="#cps_info">CPS-1</a>
+	<a href="#gbc_info">Gameboy / Gameboy Color</a>
+	<a href="#kss_info">KSS</a>
+	<a href="#pce_info">PC-Engine / TurboGrafx</a>
+	<a href="#gen_info">SEGA Genesis / Megadrive</a>
+	<a href="#sgg_info">SEGA Game Gear</a>
+	<a href="#sms_info">SEGA Master System</a>
+
+
+<a name="compiler_directives"></a>
+<b>Compiler directives</b>
+
+	These are the XPMCK-specific preprocessor commands available:
+<a name="numeric_base"></a>
+		<i class="mml">#ALBUM name</i>				Name of the album that the song comes from (used in VGM GD3 tags
+								if <i class="mml">#GAME</i> is undefined).
+
+		<i class="mml">#BASE num</i>				Selects the numerical base to use by the compiler when
+								interpreting numbers in the MML code. Possible values for <i class="mml">num</i>
+								are 10 (decimal) and 16 (hexadecimal), with 10 being the default.
+								When decimal base is used, all numbers will be interpreted as decimal
+								by default, and a <i class="mml">0x</i> prefix has to be used to specify a hexadecimal
+								number. Likewise, when a hexadecimal base is selected, numbers will be
+								interpreted as hex by default, and a <i class="mml">0d</i> prefix has to be used to
+								force a number to be interpreted as decimal.
+								Note that <i class="mml">#BASE 16</i> only affects numbers that are enclosed in <i class="mml">{}</i>. All
+								other numbers are still interpreted as decimal by default:
+
+								<i class="mml">#BASE 16
+
+								@v0 = { f a 6 3 }	; Interpreted as hex
+
+								ABCD t125			; Interpreted as decimal
+					</i>
+
+		<i class="mml">#ELSE</i>					Used together with <i class="mml">IFDEF/IFNDEF</i>.
+
+		<i class="mml">#ELSIFDEF</i>				Used together with <i class="mml">IFDEF/IFNDEF</i>.
+
+		<i class="mml">#ENDIF</i>					Used together with <i class="mml">IFDEF/IFNDEF</i>.
+
+		<i class="mml">#EN-REV num</i>				If <i class="mml">num</i>==0 <i class="mml">EN</i> macros work similar to other
+								MML implementations.
+								If <i class="mml">num</i>==1 <i class="mml">EN</i> is not cumulative, meaning that
+								instead of <i class="mml">{| 3 4 -7}</i> you write <i class="mml">{| 3 7 0}</i>.
+
+		<i class="mml">#ERROR "message"</i>		Output an error message and abort compilation.
+
+		<i class="mml">#GAME name</i>		 	Name of the game that the song comes from (used in VGM GD3 tags).
+
+		<i class="mml">#GB-NOISE num</i>			Use an alternative frequency table for the GBC noise
+								channel if <i class="mml">num</i>==1. The alternative table tries to assign
+								unique frequencies for each note, but is limited to 5 octaves,
+								compared to 11 for the standard table.
+<a name="gb_volume"></a>
+		<i class="mml">#GB-VOLUME-CONTROL num</i>	Specifies whether normal volume control should be used (<i class="mml">num</i>==0) -
+								which triggers a restart of the channel every time the volume is
+								changed - or if	the playback code should take advantage of a bug
+								in the Gameboy hardware which allows the volume to be changed with
+								less distortion (<i class="mml">num</i>==1). The default is 0.
+								Note #1: You should not use <i class="mml">@ve</i> when the new volume control is used.
+								Note #2: The new volume control is not compatible with some emulators,
+									     so you will get very short notes when playing a song. It does
+									     work properly on real Gameboys however. Among the emulators
+									     that seems to emulate this bug properly is VBA-M and nezplug++.
+
+		<i class="mml">#IFDEF</i>, <i class="mml">#IFNDEF</i>			Conditional compilation depending on if a
+								symbol is defined or not.
+
+								Currently the only symbol defined is the selected
+								target, so this check would be valid:
+
+								<i class="mml">#IFDEF SMS
+									; blah
+								#ELSIFDEF SGG
+									; blah
+								#ENDIF</i>
+
+								The boolean operators <i class="mml">&</i> (AND) and <i class="mml">|</i> (OR) can be
+								used:
+
+								<i class="mml">#IFDEF SMS | SGG
+									; blah
+								#ENDIF</i>
+
+								Note that the boolean operators take opposite
+								meanings when <i class="mml">IFNDEF</i> is used, i.e.:
+
+								<i class="mml">#IFNDEF SMS | SGG	; Means "If not defined SMS or not defined SGG"
+						</i>
+		<i class="mml">#INCLUDE "filename"</i>		Include the contents of another MML file.
+
+		<i class="mml">#NTSC</i>					Inform the compiler that you are going to play the
+								song with an update frequency of ~60 Hz. Along with
+								the tempo and the note lengths this is used to
+								calculate how long each note should be played.
+
+		<i class="mml">#PAL</i>					Specify a 50 Hz update frequency. Mutually exclusive
+								to #NTSC. Some targets only support 60 Hz playback -
+								for these targets this command is ignored.
+
+		<i class="mml">#SONG num</i>				Start a new song. This directive is used to put multiple songs
+								in the same mml file. <i class="mml">num</i> has a valid range of 2-100.
+								All songs share the same effect macros.
+
+		<i class="mml">#TUNE</i>					Use an alternative frequency table on the SEGA Master
+								System to lower the error percentage on higher octaves.
+
+		<i class="mml">#WARNING "message"</i>		Output a warning. Aborts compilation if the -w switch has been used.
+
+		<i class="mml">#UNIFORM-VOLUME num</i>		Specify a custom maximum volume for all channels.
+								The volumes will be scaled to the valid range of
+								the target machine.
+
+
+<b>Syntax</b>
+
+<a name="effect_frequency"></a>
+<b>Effect frequency</b>
+		Effects (<i class="mml">@v</i>, <i class="mml">@EN</i>, <i class="mml">@CS</i> etc.) are normally stepped through once per frame,
+		which on most systems is either 50 or 60 times per second. However, it
+		is possible to change the update frequency for any effect so that it
+		will be stepped through every time a new note is played on the channel.
+
+		The syntax for this is similar to the one used for <a href="#callback">callbacks</a>, so
+		to create a volume macro that is updated once per note you would write
+		something like:
+
+		<i class="mml">@v0 = { 15:0 } (EVERY-NOTE)</i>
+
+		If you then used that macro in the following way:
+
+		<i class="mml">A o4 l4 @v0 c d e f</i>
+
+		you would get a C played at volume 15, D at volume 14, etc.
+
+<a name="intervals"></a>
+<b>Intervals</b>
+		XPMCK offers a compact way of expressing intervals for macros such as
+
+		<i class="mml">@v0 = { 15 14 13 12 10 9 8 7 6 5 4 3 2 1 0 }</i>
+
+		This can instead be written as:
+
+		<i class="mml">@v0 = { 15:0 }</i>
+
+		It&#39;s also possible to specify a step value, so
+
+		<i class="mml">@v0 = { 1:9:2 }</i>
+
+		is equivalent to
+
+		<i class="mml">@v0 = { 1 3 5 7 9 }</i>
+
+		And
+
+		<i class="mml">@v0 = { 11:7:-0.5 8:11:0.5 }</i>
+
+		is equivalent to
+
+		<i class="mml">@v0 = { 11 10 10 9 9 8 8 7 7 8 8 9 9 10 10 11 }</i>
+
+<a name="repeats"></a>
+<b>Repeats</b>
+		Sometimes you might have a macro that contains different values that
+		are repeated the same amount of times, but cannot be expressed as
+		an interval. For example:
+
+		<i class="mml">@v0 = { 11 11 11 11 8 8 8 8 10 10 10 10 7 7 7 7 }</i>
+
+		This can be simplified with the <i class="mml">&#39;</i> (single quote) operator:
+
+		<i class="mml">@v0 = { 11'4 8'4 10'4 7'4 }</i>
+
+		Or even simpler:
+
+		<i class="mml">@v0 = { 11 8 10 7 } ' 4</i>
+
+		Another example:
+
+		<i class="mml">@v0 = { 7 4'2 5 } ' 3</i>
+
+		which would be the same as
+
+		<i class="mml">@v0 = { 7 7 7 4 4 4 4 4 4 5 5 5 }</i>
+
+		It&#39;s also possible to combine <i class="mml">:</i> and <i class="mml">'</i>. For example, all of these
+		examples are equivalent:
+
+		<i class="mml">@v0 = { 9 9 7 7 5 5 3 3 1 1 }</i>
+		<i class="mml">@v1 = { 9:1:-2 } ' 2</i>
+		<i class="mml">@v2 = { 9:1:-2'2 }</i>
+
+<a name="macro_offset"></a>
+<b>Macro offsetting/scaling</b>
+		You can apply some basic arithmetic operations on macros:
+
+		<i class="mml">@v0 = { 1 2 3 4 } + 2</i>
+
+		which is equivalent to
+
+		<i class="mml">@v0 = { 3 4 5 6 }</i>
+
+		Operators <i class="mml">-</i> (subtraction) and <i class="mml">*</i> (multiplication) can also be used.
+		You can apply more than one operator but they will be applied in
+		the order that they occur, so don&#39;t expect any normal operator
+		priorities to hold true.
+
+		<i class="mml">@v0 = { 1 2 3 } + 1 * 2		; Will result in { 4 6 8 }</i>
+
+		The scaling/offset must be a numeric contant. It can be a floating
+		point value, but the scaled/offset values will be floored to integers:
+
+		<i class="mml">@v0 = { 2 3 } * 2.5			; Will result in { 5 7 }</i>
+
+<b>Comments</b>
+		Single line comments start with a <i class="mml">;</i> (semi-colon).
+		Multiline comments start with <i class="mml">/*</i> and end with <i class="mml">*/</i>
+
+<a name="algorithm"></a>
+<b>Instrument / algorithm selection</b> (All)
+	<i class="mml">@</i><i class="mmlparm">num</i>
+		Apart from selecting the duty cycle for channels that support it,
+		@ also has another purpose in XPMCK. For FM channels it is used to
+		select the instrument or algorithm for the channel.
+
+		<i>Atari 8-bit</i>
+		The valid range is 0-7 and corresponds to the distortion bits for the
+		channel's AUDC register.
+
+		<i>Commodore 64</i>
+		Selects the waveform to use:
+
+			<i class="mml">@0 = Triangle
+			@1 = Saw
+			@2 = Square
+			@3 = Noise</i>
+
+		<i>CPC / KSS</i>
+		For AY channels (A, B, C for CPC / E,F,G for KSS) the valid range is 0-7 and
+		toggles tone, noise and envelope on/off depending on which bits are set in the value:
+
+			Bit 0: note
+			Bit 1: noise
+			Bit 2: envelope
+
+			For example, <i class="mml">@1</i> would enable tone, while <i class="mml">@6</i> enables noise and envelope.
+
+		<i>Gameboy, SEGA Master System and SEGA Game Gear</i>
+		This command switches between white noise and periodic noise generation for
+		channel D (0 = white, 1 = periodic).
+
+		<i>PC-Engine</i>
+		This command switches between wavetable and white noise output on channels
+		E and F (0 = wavetable mode, 1 = white noise mode).
+
+		<i>SEGA Master System (YM2413)</i>
+		The valid range depends on the channel&#39;s current <a href="#mode">output mode</a>:
+
+			M0 (melody):
+				<i class="mml">@0  = Custom
+				@1  = Violin
+				@2  = Guitar
+				@3  = Piano
+				@4  = Flute
+				@5  = Clarinet
+				@6  = Oboe
+				@7  = Trumpet
+				@8  = Organ
+				@9  = Horn
+				@10 = Synthesizer
+				@11 = Harpsichord
+				@12 = Vibraphone
+				@13 = Synthesizer bass
+				@14 = Acoustic bass
+				@15 = Electric guitar</i>
+
+			M1 (rhythm):
+				<i class="mml">@0  = Bass drum
+				@1  = Snare drum
+				@2  = Hi-hat
+				@3  = Top cymbal
+				@4  = Tom-tom</i>
+
+		When in rhythm mode, each instrument has a global volume that is shared by
+		all channels. This means that a channel modifying the volume for one of the
+		rhythm instruments will affect all other channels that are using the same
+		instrument.
+
+		<i>SEGA Genesis (YM2612)</i>
+		The valid range is 0-7 and selects a range of instrument sounds according
+		to the following table:
+
+			<i class="mml">@0 = Distortion guitar, high hat chopper bass
+			@1 = Harp, PSG-like sound
+			@2 = Bass, electric guitar, brass, piano, woods
+			@3 = Strings, folk guitar, chimes
+			@4 = Flute, bells, chorus, bass drum, snare drum, tom-tom
+			@5 = Brass, organ
+			@6 = Xylophone, tom-tom, organ, vibraphone, snare drum, bass drum
+			@7 = Pipe organ</i>
+
+		<i>CPS-1 (YM2151)</i>
+		The valid range is 0-7 and selects a range of instrument sounds similar to
+		the SEGA Genesis.
+
+		The type of sound generated on the SEGA Genesis and CPS-1 also depends on
+		the current feedback setting (see the <a href="#feedback">FB</a> command).
+
+<a name="adsr"></a>
+<b>ADSR envelope</b> (C64, CPS-1, Genesis, Master System)
+	<i class="mml">@ADSR</i><i class="mmlparm">num</i><i class="mml"> = { attack decay sustain release }</i> or
+	         	  <i class="mml">  { attack decay1 decay2 sustain release }</i>
+	<i class="mml">ADSR</i><i class="mml">(attack decay sustain release)</i>
+	<i class="mml">ADSR(attack decay1 decay2 sustain release)</i>
+		Specify attack rate, decay rate, sustain level and release rate.
+
+		On the SEGA Master System (YM2413) the four-parameter version
+		is used and all values have a range of 0-15 (15 being the fastest
+		rate / maximum level). Only the custom instrument (<i class="mml">@0</i>) uses the
+		ADSR parameters, all other instruments have fixed ADSR envelopes.
+
+		On the SEGA Genesis (YM2612) the five-parameter version is used
+		and all values have a range of 0-31 (the LSB of <i class="mml">sustain</i> and <i class="mml">release</i>
+		is ignored since they are stored as 4-bit values in the YM2612
+		registers). <i class="mml">decay1</i> is the initial fast decay rate, while <i class="mml">decay2</i> is
+		the secondary slower decay rate. This command is <a href="#operator">operator-specific</a>.
+
+		The CPS-1 (YM2151) uses the same type of ADSR envelopes as the SEGA
+		Genesis.
+
+		On the Commodore 64 the four-parameter version is used and all values
+		have a range of 0-15 (15 being the fastest rate / maximum level).
+
+		Example:
+
+			<i class="mml">#IFDEF GEN|CPS
+				@ADSR1 = {28 29 4 25 10}
+			#ELSIFDEF SMS
+				@ADSR1 = {12 13 11 9}
+			#ENDIF
+
+			F v10 OP0 ADSR1 c4</i>
+
+		It&#39;s also possible to apply an ADSR envelope directly without declaring it first:
+
+			<i class="mml">E o4 l8 OP0 ADSR(28 29 4 25 10) c1 d1</i>
+
+<a name="pan"></a>
+<b>Channel separation (pan) macro</b> (CPS-1, GBC, Game Gear, Genesis, PC-Engine)
+	<i class="mml">@CS</i><i class="mmlparm">num</i><i class="mml"> = { ... | ...}</i>
+		Pans the sound on targets that support it. Valid range is -63-63.
+		-63 means full left, 0 means center and 63 means full right.
+
+		<i>PC-Engine</i>
+		The range is 1-255 (0x01-0xFF). The value 0 is disallowed since it has a special
+		meaning. It has no point anyway since it would mute the channel, which you can
+		achieve either by using a rest command or <i class="mml">v0</i>.
+		The upper four bits of each value controls the left output level, while the
+		lower four bits controls the right output level (i.e. 0xF0 is full left, 0x0F is
+		full right, and 0xFF is full output to both left and right).
+
+		The macro is applied to a channel with <i class="mml">CS</i><i class="mmlparm">num</i> and disabled with <i class="mml">CSOF</i>.
+
+<a name="envelope_speed"></a>
+<b>Envelope speed</b> (CPC, KSS)
+	<i class="mml">@es</i><i class="mmlparm">num</i>
+		Set the speed of the AY envelope generator.
+		Valid range of <i class="mmlparm">num</i> is 0-65535, where 65535 is the maximum speed.
+
+		Example:
+
+			<i class="mml">G @es2500 @te15 @5 c1</i>
+
+<a name="feedback_macro"></a>
+<b>FM feedback macro</b> (CPS-1, Genesis)
+	<i class="mml">@FBM</i><i class="mmlparm">num</i><i class="mml"> = { ... | ...}</i>
+		Specifies the amount of self-feedback for operator 1. This command
+		is used in combination with the <a href="#algorithm">@</a> command on the SEGA Genesis and
+		CPS-1 FM channels to select the type of sound generated.
+		This is the macro version of <a href="#feedback">FB</a>, and allows for rapid changes of
+		the feedback value.
+		Valid range is 0-7.
+
+		Example:
+
+			<i class="mml">@FBM0 = { | 0 0 3 3 7 7}
+
+			E v9 @2 FBM0 c1</i>
+
+<a name="filter"></a>
+<b>Filter macro</b> (Atari 8-bit, C64)
+	<i class="mml">@FT</i><i class="mmlparm">num</i><i class="mml"> = { type cutoff resonance }</i>
+		<i>Commodore 64</i>
+		Specifies a filter macro for use on.
+		<i class="mml">type</i> selects the type of filter to use, and has a valid range of 0-3 (0 = low pass,
+		1 = high pass, 2 = band pass, 3 = notch reject).
+		<i class="mml">cutoff</i> specifies the cutoff frequency, and has a valid range of 0-2047 (which
+		corresponds to a frequency range of about 30-12000 Hz).
+		<i class="mml">resonance</i> specifies the filter resonance, and has a valid range of 0-15.
+
+		Note that the filter parameters are shared between all channels, while filtering
+		can be enabled/disabled individually per channel. Thus, applying a new filter on one
+		channel will affect all other channels that have filtering enabled, while disabling
+		filtering will not affect other channels.
+
+		The macro is applied to a channel with <i class="mml">FT</i><i class="mmlparm">num</i> and disabled with <i class="mml">FTOF</i>.
+
+		<i>Atari 8-bit</i>
+		Filters are not declared (i.e. <i class="mml">@FT</i> is not used).
+		Instead, FT0 is used on a channel to enable POKEY's high-pass filter, and FTOF disables it.
+		Note that the high-pass filter only can be applied on channels A and B, and the
+		filter frequency will come from channels C and D respectively.
+
+		Example:
+
+			<i class="mml">@FT0 = {0 400 2}	; Set a low pass filter.
+
+			A @0 v10 FT0</i>
+
+<a name="modulator"></a>
+<b>Modulator</b> (CPS-1, Genesis, PC-Engine)
+	<i class="mml">@MOD</i><i class="mmlparm">num</i><i class="mml"> = { lfo ams fms }</i> or
+	        	    <i class="mml">{ lfo amd fmd ams fms waveform }</i> or
+	        	    <i class="mml">{ lfo mdl }</i>
+		Specifies a modulator to be used for modulating the amplitude and/or
+		frequency of a channel.
+
+		<i>SEGA genesis</i>
+		The 3-parameter form is used.
+		<i class="mml">lfo</i> selects the frequency of the modulator LFO. Valid range is 0-7
+		(7 being the maximum frequency). Note that the LFO is shared for all channels,
+		so issuing a <i class="mml">MOD</i> command on one channel will affect all other channels that
+		are using a modulator.
+		<i class="mml">ams</i> selects the amplitude modulation sensitivity. Valid range is 0-7
+		(7 being the maximum sensitivity). Amplitude modulation also has to be separately
+		enabled with the <a href="#amplitude_mod">AM</a> command. This can be done per <a href="#operator">operator</a>.
+		<i class="mml">fms</i> selects the frequency modulation sensitivity. Valid range is 0-3
+		(3 being the maximum sensitivity).
+
+		<i>CPS-1</i>
+		The 6-parameter form is used.
+		<i class="mml">lfo</i> selects the frequency of the modulator LFO. Valid range is 0-255
+		(255 being the maximum frequency). Note that the LFO is shared for all channels,
+		so issuing a MOD command on one channel will affect all other channels that
+		are using a modulator.
+		<i class="mml">amd</i> selects the amplitude modulation depth. Valid range is 0-127.
+		<i class="mml">fmd</i> selects the frequency modulation depth. Valid range is 0-127.
+		<i class="mml">ams</i> selects the amplitude modulation sensitivity. Valid range is 0-3
+		(3 being the maximum sensitivity). Amplitude modulation also has to be separately
+		enabled with the <a href="#amplitude_mod">AM</a> command. This can be done per <a href="#operator">operator</a>.
+		<i class="mml">fms</i> selects the frequency modulation sensitivity. Valid range is 0-7
+		(7 being the maximum sensitivity).
+		<i class="mml">waveform</i> selects the waveform of the modulator LFO. Valid range is 0-3
+		(0 = saw, 1 = square, 2 = triangle, 3 = noise).
+
+		<i>PC-Engine</i>
+		The 2-parameter form is used.
+		<i class="mml">lfo</i> selects the frequency of the modulator LFO. Valid range is 0-255
+		(255 being the maximum frequency).
+		<i class="mml">mdl</i> selects the modulation level. Valid range is 0-3 (3 being the
+		maximum level).
+
+		The macro is applied to a channel with <i class="mml">MOD</i><i class="mmlparm">num</i> and disabled with <i class="mml">MODOF</i>.
+
+		Example:
+
+			<i class="mml">@MOD0 = {4 2 2}
+
+			E v100 MOD0 OP0 AM1 c1</i>
+
+<a name="waveform"></a>
+<b>Waveform definition</b> (GBC, KSS, PC-Engine)
+	<i class="mml">@WT</i><i class="mmlparm">num</i><i class="mml"> = { sample sample sample ... }</i> or
+	         	  <i class="mml"><strike>{ "filename.wav" resample volume }</strike></i>
+		Defines a waveform for playback on channels that supports it.
+		In the first case the sequence should contain 32 unsigned samples in the
+		range 0..15 for the GBC, -128..127 for KSS, and 0..31 for PC-Engine.
+		<strike>In the second case the first value should be a string specifying a</strike>
+		<strike>.wav file to convert. The resample parameter is the frequency to</strike>
+		<strike>resample the .wav file to, and volume specifies the upper limit</strike>
+		<strike>of the volume range the sample data will be scaled to.</strike>
+
+		Example:
+
+			<i class="mml"><strike>@WT0 = {"kickdrum.wav" 8000 15}</strike>
+			@WT1 = {0 0 0 15 0 0 0 15 0 0 0 15 0 0 0 15 0 0 0 15 0 0 0 15 0 0 0 15 0 0 0 15}
+
+			C v3 WT1 c4</i>
+
+<a name="waveform_macro"></a>
+<b>Waveform macro</b> (GBC)
+	<i class="mml">@WTM</i><i class="mmlparm">num</i><i class="mml"> = { WTnum frames WTnum frames ... | ... }</i>
+		Macro version of <i class="mml">WT</i>.
+		The list specifies a series of waveforms to use and how many frames each of them should be played.
+
+		Example:
+
+			<i class="mml">; Play WT0 for 12 frames, then WT1 for 8 frames, then repeat</i>
+			<i class="mml">@WTM0 = {| WT0 12 WT1 8}</i>
+
+			<i class="mml">C v3 WTM0 c4</i>
+
+<a name="xpcm"></a>
+<b>PCM definition</b> (Genesis, PC-Engine)
+	<i class="mml">@XPCM</i><i class="mmlparm">num</i><i class="mml"> = { "filename.wav" resample }</i>
+	<i class="mml">@XPCM</i><i class="mmlparm">num</i><i class="mml"> = { "filename.wav" resample volume }</i>
+		Defines a PCM sample for playback on channels that supports it.
+		The <i class="mml">resample</i> parameter is the frequency to resample the .wav file to (or 0 if you
+		don&#39;t want any resampling). The resampling done by XPMC is of quite poor quality, so
+		you should consider resampling in a wave editor instead. The native playback rates
+		in XPMCK are as follows:
+
+			PC-Engine:	6992 Hz
+			SEGA Genesis:	8820 Hz
+
+		XPMC will automatically convert the samples to 8-bit mono if needed.
+
+		If <i class="mml">volume</i> is specified, the sample will be scaled to a percentage of the original
+		volume. For example, a <i class="mml">volume</i> of 50 means the sample data will be scaled to half the
+		original volume.
+
+		Each sample is tied to a specific note, specified by <i class="mmlparm">num</i>, starting from C in
+		octave 0. So <i class="mmlparm">num</i>=0 means a C in octave 0 is used to play the sample, 3 means
+		D+ in octave 0, 12 means C in octave 1, etc. Usually one will skip all the numbers
+		that correspond to sharps, simply because it&#39;s easier to type <i class="mml">dddd</i> than <i class="mml">c+c+c+c+</i>.
+
+		Example:
+
+			<i class="mml">@XPCM0 = {"kickdrum.wav" 8000}
+
+			J o0 M2 c4</i>
+
+<a name="pulse_width_macro"></a>
+<b>Pulse width macro</b> (C64)
+	<i class="mml">@pw</i><i class="mmlparm">num</i><i class="mml"> = { ... | ... }</i>
+		Macro version of <a href="#pulse_width">pw</a>.
+
+		Example:
+
+			<i class="mml">@pw0 = {1 2 3}
+			@pw1 = {2 2 | 0 0 1 1}
+
+			A @pw0 c1 pw9 d1	; pw and @pw override eachother</i>
+
+<a name="cutoff"></a>
+<b>Cutoff</b> (All)
+	<i class="mml">q</i><i class="mmlparm">num</i>
+	<i class="mml">@q</i><i class="mmlparm">num</i>
+		The cutoff (or quantizer) command makes part of the note silent, which can be useful for
+		things like string sounds or drums. The normal version of <i class="mml">q</i> has a valid
+		range for <i class="mmlparm">num</i> of -8-8. Positive numbers will mute the last 8-<i class="mmlparm">num</i> eights
+		of the note (so e.g. <i class="mml">q</i><i class="mmlparm">8</i> would play every note unchanged).
+		Negative numbers will mute the beginning of the note, while the latter part of the note is allowed
+		to play.
+
+		<i class="mml">@q</i> works similarly, except that you don&#39;t specify the cutoff in 1/8ths of the note length,
+		but in number of frames. In this mode <i class="mmlparm">num</i> has a valid range of -15-15.
+
+<a name="alt_rest"></a>
+<b>Alternative rest</b> (All)
+	<i class="mml">s</i>
+		This works the same as <i class="mml">r</i>, except that it doesn&#39;t mute the channel.
+		Useful when using the <a href="#direct_write">w</a> command.
+
+		Example:
+
+			<i class="mml">A l8 s s4. s&s32</i>
+
+<a name="tone_envelope"></a>
+<b>Tone envelope</b> (CPC, GBC, KSS, Master System)
+	<i class="mml">@te</i><i class="mmlparm">num</i>
+	<i class="mml">@te</i><i class="mmlparm">num</i>,<i class="mmlparm">num2</i>
+		<i>GBC</i>
+		Specifies the current tone envelope (frequency sweep).
+		Valid range of <i class="mmlparm">num</i> is -7-7. Positive numbers make the frequency
+		gradually increase, negative numbers make the frequency gradually
+		decrease, and zero disables the effect.
+		If <i class="mmlparm">num2</i> is specified it selects the number of sweep steps (0-7), otherwise
+		the default value (7) is used.
+		Only supported for channel A.
+
+		<i>CPC / KSS</i>
+		Specifies the envelope shape to use on the PSG (AY), and
+		is shared between all three channels.
+		Valid range of <i class="mmlparm">num</i> is 0-15.
+		Only supported for channels A..C (CPC) / E..G (KSS).
+		Use <a href="#algorithm">@</a> to toggle the envelope on/off for any of the PSG channels.
+
+		<i>Master System</i>
+		Selects the envelope generator type for the custom instrument (<i class="mml">@0</i>) for the Master System FM
+		channels. <i class="mml">@te0</i> selects the percussive envelope, and <i class="mml">@te1</i> selects the
+		sustained envelope.
+
+		Example:
+
+			<i class="mml">A @te2 c1 @te-3,6 d1</i>
+
+<a name="volume_envelope"></a>
+<b>Volume envelope</b> (GBC, Master System)
+	<i class="mml">@ve</i><i class="mmlparm">num</i>
+		Specifies the current volume envelope.
+
+		<i>GBC</i>
+		Valid range of <i class="mmlparm">num</i> is -7-7. Positive numbers make the volume
+		gradually increase, negative numbers make the volume gradually
+		decrease, and zero disables the effect.
+		This command is currently only supported for channels is A, B or D.
+
+		<i>Master System</i>
+		Selects the gain level for the custom instrument (<i class="mml">@0</i>) on the FM channels. The valid
+		range is 0-63.
+
+		Example:
+
+			<i class="mml">A @ve-5 c1</i>
+
+<a name="volume"></a>
+<b>Volume set</b> (All)
+    	<i class="mml">v</i><i class="mmlparm">num</i>
+    	<i class="mml">v+</i>
+    	<i class="mml">v-</i>
+    	<i class="mml">v+</i><i class="mmlparm">num</i>
+    	<i class="mml">v-</i><i class="mmlparm">num</i>
+	<i class="mml">@v</i><i class="mmlparm">num</i>
+		<i>SEGA Genesis FM channels, CPS-1</i>
+		This command is operator specific, meaning that you can set the volume
+		individually per operator. To set the volume for all operators at once,
+		put an <i class="mml">OP0</i> command before the volume command(s).
+
+		<i>Commodore 64</i>
+		There is only one global volume that affects all channels. To get different
+		loudness levels for different channels you can use <a href="#adsr">ADSR envelopes</a> and/or
+		<a href="#filter">filters</a>.
+
+		<i>Gameboy / Gameboy Color</i>
+		See the <a href="#gbc_info">Gameboy section</a> for additional info regarding volume
+		control on the Gameboy / Gameboy Color.
+
+		For chips with individual volume controls for left and right (e.g. HuC6280 (PC-Engine))
+		you can specify two values per volume command: the one before the comma will set the
+		channel's left output level, and the one after the comma will set the channel's right
+		output level. If you use a single-value <i class="mml">v/v+/v-</i> command it will set
+		the same output level for both left and right.
+
+		<i class="mml">v+</i> and <i class="mml">v-</i> increases/decreases the volume by one. It is also possible to specify an
+		amount for these commands, e.g. <i class="mml">v+3</i> would increase the volume by three units.
+
+		Example:
+
+			<i class="mml">E OP0 v100
+			F OP1 v105 OP2 v95 OP3 v80 OP4 v100</i>
+
+<a name="direct_write"></a>
+<b>Direct write</b> (All)
+	<i class="mml">w</i><i class="mmlparm">address</i>,<i class="mmlparm">data</i>
+	<i class="mml">w</i>(<i class="mmlparm">port</i>),<i class="mmlparm">data</i>
+		Write one byte of data to a given memory address or port.
+		This is similar to the <i class="mml">@n</i> command in ppmck, but you&#39;re not limited to just
+		the frequency registers - you can write to any address/port.
+		All parameters must be entered in decimal form. The <i class="mmlparm">address</i>/<i class="mmlparm">port</i> must
+		be in the range 0-65535. The <i class="mmlparm">data</i> must be in the range 0-255.
+
+		Example:
+
+			<i class="mml">#IFDEF SMS
+			A w(127),208 w(127),0		; Set maximum volume on channel 2
+			#ENDIF</i>
+
+<a name="macro"></a>
+<b>General macro</b> (All)
+	<i class="mml">$</i><i class="mmlparm">id</i><i class="mml"> { ... } </i>
+	<i class="mml">$</i><i class="mmlparm">id</i>(<i class="mmlparm">default1</i>,<i class="mmlparm">default2</i>,<i class="mmlparm">...</i>)<i class="mml"> { ... } </i>
+	<i class="mml">$</i><i class="mmlparm">id</i>(<i class="mmlparm">param1</i>,<i class="mmlparm">param2</i>,<i class="mmlparm">...</i>)
+		Define/use a general macro. These can be used to save typing if a
+		lot of smilar patterns are used in a song. Parameters are dereferenced
+		with <i class="mml">%num%</i> (<i class="mml">%1%</i> being the first parameter).
+
+		It is possible to define default parameters for a macro. For example
+		if you had:
+
+			<i class="mml">$1(8,,a) { c%1% d%2% %3% }</i>
+
+		then
+
+			<i class="mml">A $1()</i>
+
+		would expand to:
+
+			<i class="mml">A c8 d a</i>
+
+		Example:
+
+			<i class="mml">$1 { [%1%]4 %2%.. }
+
+			A $1(c, a)</i>
+
+		The macro invokation on channel <i class="mml">A</i> will expand to <i class="mml">[c]4 a..</i>
+
+<a name="callback"></a>
+<b>Callback</b> (All)
+	<i class="mml">!</i><i class="mmlparm">id</i>(<i class="mmlparm">frequency</i>)
+		Call a function on the host CPU. E.g. if playing a song on the
+		SEGA Master System this command would call a function in your
+		Z80 code. This can be used to synchronize the visual output
+   		of your program with the music.
+		The <i class="mmlparm">frequency</i> parameter specifies how often the function should be
+		called. The available values are:
+
+		<i class="mml">0</i>			Never (disable the callback).
+
+		<i class="mml">1</i>			Once (called during the next update).
+
+		<i class="mml">EVERY-NOTE</i>	Called for every new note that is
+					played on the channel(s).
+
+		Example:
+
+			<i class="mml">AD !foo(EVERY-NOTE)
+			A l16 cdef
+			D l32 [g]8</i>
+
+		Here the function <i class="mml">foo</i> will be called each time a new note is
+		played on channel <i class="mml">A</i> or <i class="mml">D</i>.
+
+<a name="repeat_loop"></a>
+<b>Repeat loop</b> (All)
+	<i class="mml">[ </i>...<i class="mml"> ]</i><i class="mmlparm">n</i>
+	<i class="mml">[ </i>...<i class="mml">| </i>... <i class="mml">]</i><i class="mmlparm">n</i>
+		Repeat everything between the brackets <i class="mmlparm">n</i> times.
+		When the second form is used the part after the <i class="mml">|</i> will be skipped on the last
+		iteration.
+		<i class="mmlparm">n</i> must be >=1, or >=2 when the second form is used.
+
+		Loops can be nested up to two levels:
+
+			<i class="mml">[[cde]2 fg]4		; This is ok
+			[[cde]2 fg]4 a]2	; This is not ok</i>
+
+		Loops are not expanded by the compiler, they are handled by the playback library
+		at runtime.
+
+		Example:
+
+			<i class="mml">[cde]2				; Play the sequence cde twice.
+			[cde | fg]3			; Play the sequence cdefg twice, then play cde once.</i>
+
+<a name="pattern"></a>
+<b>Pattern</b> (All)
+	<i class="mml">\</i><i class="mmlparm">id</i><i class="mml"> { ... } </i>
+	<i class="mml">\</i><i class="mmlparm">id</i><i class="mml">()</i>
+		Define/use a pattern. If you want to use the exact same pattern of commands
+		several times throughout a song, but inconsecutively such that they can&#39;t just
+		be put in a loop, then the pattern construct can be used. The difference compared
+		to <a href="#macro">macros</a> is that macros simply result in a text replacement
+		at compile time, which saves typing for the programmer but doesn&#39;t save any
+		space in the compiled song. Patterns on the other hand are more like subroutines,
+		where only a single copy of the data exists in the compiled song which be can be used
+		from multiple places.
+		If you&#39;re outputting to a logged format such as VGM, then using patterns is useless
+		since they won&#39;t save you any space in the compiled song in that case, and macros
+		are more flexible. But if you are creating a ROM or an executable music format (such as
+		SID or GBS) and the size of the file matters, then patterns should be used whenever possible.
+
+		Example:
+
+			<i class="mml">\1 { t150 l16 q6 b4g8c8 }
+
+			AB \1() r1 e \1()</i>
+
+		Note that patterns don&#39;t take any arguments, but are still required to have the parentheses
+		as a delimiter. Also, you can&#39;t invoke another pattern from within a pattern.
+
+		Since a pattern can be invoked by zero or more channels, which all can have different settings
+		for tempo, note lengths and so on, you have to specify such settings inside each pattern.
+		The fact that a pattern can be used on any channel also means that some of the regular sanity
+		checks done by the compiler will be disabled. You will for example not get a warning if you use
+		a pattern that contains FM commands on a PSG channel.
+
+<a name="multiline"></a>
+<b>Multiline channel activation</b> (All)
+	<i class="mml">( </i>... <i class="mml">)</i>
+		Activates one or more channels until a <i class="mml">)</i> is found, as a means to save typing.
+
+		Example:
+
+			<i class="mml">AB (
+			cde
+			efg
+			b
+			)</i>
+
+			this is equal to writing
+
+			<i class="mml">AB cde
+			AB efg
+			AB b</i>
+
+		Note that the starting <i class="mml">(</i> must be on the same line as the channel enumerators.
+
+<a name="amplitude_mod"></a>
+<b>Amplitude modulation enable</b> (CPS-1, Genesis, Master System)
+	<i class="mml">AM</i><i class="mmlparm">num</i>
+		Used for the FM channels on the SEGA Genesis (channels <i class="mml">E..J</i>), and on the CPS-1.
+		Enable/disable amplitude modulation for the currenly selected <a href="#operator">operator(s)</a>.
+		Valid range of <i class="mmlparm">num</i> is 0-1 (0=OFF, 1=ON).
+		This command is used in conjunction with <a href="#modulator">MOD</a>.
+
+<a name="detune"></a>
+<b>Detune</b> (All)
+	<i class="mml">D</i><i class="mmlparm">num</i>
+		For most targets this command works as usual.
+		For the FM channels on the SEGA Genesis (channels <i class="mml">E..J</i>) the detune
+		command has a more limited range of -3-3. The reason for this is that
+		the value is written to the DT1 bits of the selected <a href="#operator">operator(s)</a>.
+		Detuning for these channels is also controlled by the <a href="#detune_mult">MF</a> command.
+		On the CPS-1 this command works as on the SEGA Genesis.
+
+<a name="feedback"></a>
+<b>FM feedback</b> (CPS-1, Genesis, Master System)
+	<i class="mml">FB</i><i class="mmlparm">num</i>
+		Specifies the amount of self-feedback for operator 1. This command
+		is used in combination with the <a href="#algorithm">@</a> command on the SEGA Genesis FM
+		channels and on the CPS-1 to select the type of sound generated.
+		Valid range is 0-7.
+
+		Example:
+
+			<i class="mml">E v9 @2 FB6 c1</i>
+
+<a name="transpose"></a>
+<b>Transpose</b> (All)
+	<i class="mml">K</i><i class="mmlparm">num</i>
+		Transposes subsequent notes <i class="mmlparm">num</i> semitones up or down.
+
+		Example:
+
+			<i class="mml">A c K1 c K2 c K0 c K-1 d	; This is the same as c c+ d c c+</i>
+
+<a name="alt_length"></a>
+<b>Set note length (alternative version)</b> (All)
+	<i class="mml">k</i><i class="mmlparm">num</i>
+		Specifies the length of subsequent notes as <i class="mmlparm">num</i> 32nd notes.
+		Valid range is 1-256.
+
+		Example:
+
+			<i class="mml">A k7 cdef  ; This is the same as A c8..d8..e8..f8..</i>
+
+<a name="length"></a>
+<b>Set note length</b> (All)
+	<i class="mml">l</i><i class="mmlparm">num</i>
+		Specifies the length of subsequent notes as 1/<i class="mmlparm">num</i> (e.g with <i class="mmlparm">num</i>=1 you get whole notes, with <i class="mmlparm">num</i>=2 you get half notes, etc.)
+		Valid range of <i class="mmlparm">num</i> is 1, 2, 3, 4, 6, 8, 12, 16, 24, 32.
+
+		Example:
+
+			<i class="mml">A l8 cd l12 ef
+			B c8d8 e12f12</i>
+
+<a name="mode"></a>
+<b>Output mode</b> (Atari 8-bit, CPS-1, Genesis, Master System, PC-Engine)
+	<i class="mml">M</i><i class="mmlparm">num</i>
+		Specifies the output mode for channels that support more than one
+		output mode.
+
+		<i>SEGA Master System</i>
+		This command is used for FM channels <i class="mml">K..M</i> to select
+		melody or rhythm mode (<i class="mml">M0</i> = melody (default), <i class="mml">M1</i> = rhythm).
+		Note that switching mode on any of these three channels affects all of
+		them.
+
+		For channel <i class="mml">J</i> on the SEGA Genesis this command is used to switch
+		between FM and XPCM mode (<i class="mml">M0</i> = FM, <i class="mml">M2</i> = XPCM).
+
+		For channel <i class="mml">H</i> on the CPS-1 this command is used to switch between melody
+		and noise mode (<i class="mml">M0</i> = melody, <i class="mml">M1</i> = noise).
+
+		<i>PC-Engine</i>
+		Switches between wavetable and XPCM mode on channel D (<i class="mml">M0</i> = wavetable,
+		<i class="mml">M2</i> = XPCM).
+
+		<i>Atari 8-bit</i>
+		Used for linking pairs of channels into a 16-bit channel with better
+		precision, and for unlinking a previously linked pair back into
+		two individual 8-bit channels.
+		M1 links channel A and B when used on channel B. M0 unlinks them. While
+		linked, channel A will effectively be muted, and channel B will get a
+		wider frequency range.
+		M1 links channel C and D when used on channel D. M0 unlinks them.
+
+		Example:
+
+			<i class="mml">E v8 M0 @7 c1
+			F v9 M1 @0 [d32r32]16</i>
+
+<a name="detune_mult"></a>
+<b>FM detuning multiplier / Clock select</b> (Atari 8-bit, CPS-1, Genesis, Master System)
+	<i class="mml">MF</i><i class="mmlparm">num</i>
+
+ 		<i>SEGA Genesis, Master System, CPS-1</i>
+		Specifies the amount of detuning together with the <a href="#detune">D</a> command for the FM
+		channels.
+		Valid range is 0-15.
+		This command is <a href="#operator">operator specific</a>.
+
+		<i>Atari 8-bit</i>
+		Selects the clock used for driving the channel oscillators. This determines the
+		frequency range for all the channels.
+		Valid settings are:
+			0: 15 kHz clock. Octave range is 1-9.
+			1: 64 kHz clock (default). Octave range is 3-11.
+			2: CPU clock (~1.77 Mhz). This setting is only valid for channels B and D.
+			   Octave range is 7-12 for <a href="#mode">8-bit channels</a> and 1-12 for 16-bit channels.
+
+		Example:
+
+			<i class="mml">E OP1 D1 MF7	; Set detune and multiplier for operator 1 on channel E</i>
+
+<a name="noise_speed"></a>
+<b>Noise speed</b> (CPC, KSS)
+	<i class="mml">n</i><i class="mmlparm">num</i>
+		Set the speed of the AY noise generator.
+		Valid range of <i class="mmlparm">num</i> is 0-31, where 31 is the maximum speed.
+
+		Example:
+
+			<i class="mml">E n25 @2 v13 c</i>
+
+<a name="operator"></a>
+<b>FM Operator select</b> (CPS-1, Genesis, Master System)
+	<i class="mml">OP</i><i class="mmlparm">num</i>
+		Used for the FM channels on the SEGA Genesis (channels <i class="mml">E..J</i>), and on the CPS-1.
+		Each channel has four operators, which are set up in various configurations
+		depending on the selected <a href="#algorithm">algorithm</a>. Some commands are applied on the channel
+		while others can be applied per operator. OP selects the operator to apply
+		subsequent operator-specific commands to.
+		Valid range of <i class="mmlparm">num</i> is 0-4. If <i class="mmlparm">num</i>==0 all operators are selected.
+
+		On the Master System FM channels this command selects which of the two operators (slots) to apply certain
+		commands to (such as <a href="#feedback">FB</a>, <a href="#tone_envelope">@te</a>, <a href="#volume_envelope">@ve</a>). Valid range of <i class="mmlparm">num</i> is 0-2. If <i class="mmlparm">num</i>==0 all operators are selected.
+		Note that this is only relevant to the custom instrument (<i class="mml">@0</i>).
+
+		Example:
+
+			<i class="mml">E OP0 ADSR1		; Set ADSR envelope for all operators on channel E</i>
+
+<a name="pulse_width"></a>
+<b>Pulse width</b> (C64)
+	<i class="mml">pw</i><i class="mmlparm">num</i><i class="mml"> = { ... | ... }</i>
+		Set the current waveform pulse width when the selected waveform is square (@2).
+		<i class="mmlparm">num</i> has a valid range of 0-15 (which corresponds to a pulse width range of
+		about 0-93.8%).
+
+		Example:
+
+			<i class="mml">A pw0 c1 pw12 d1</i>
+
+<a name="ring_mod"></a>
+<b>Ring modulation enable</b> (C64)
+	<i class="mml">RING</i><i class="mmlparm">num</i>
+		When <i class="mmlparm">num</i> == 1, the triangle waveform (<i class="mml">@0</i>) of channel X (where X == <i class="mml">A</i>, <i class="mml">B</i> or <i class="mml">C</i>) is
+		replaced by a ring modulated combination of the osciallators of channel X and another
+		channel according to the following list:
+
+			A: A + C
+			B: B + A
+			C: C + B
+
+		Ring modulation is disabled when <i class="mmlparm">num</i> == 0.
+
+<a name="rate_scale"></a>
+<b>FM rate scaling</b> (CPS-1, Genesis, Master System)
+	<i class="mml">RS</i><i class="mmlparm">num</i>
+		Used for the FM channels on the SEGA Genesis (channels <i class="mml">E..J</i>), and on the CPS-1.
+		Specifies the amount with which envelopes scale to the note&#39;s pitch,
+		creating narrower envelopes as the pitch rises.
+		Valid range of <i class="mmlparm">num</i> is 0-3 (3 being the maximum amount of scaling).
+		The command is <a href="#operator">operator specific</a>.
+
+		Example:
+
+			<i class="mml">E OP1 RS2	; Set rate scaling for operator 1 on channel E</i>
+
+<a name="SSG_EG"></a>
+<b>SSG envelope generator</b> (Genesis)
+	<i class="mml">SSG</i><i class="mmlparm">num</i>
+		Used for the FM channels on the SEGA Genesis (channels <i class="mml">E..J</i>).
+		When the SSG is active, the ADSR envelope will repeat according to various patterns.
+		The pattern to use is selected by <i class="mmlparm">num</i> and has a valid range of 0-7. SSG is
+		deactivated with <i class="mml">SSGOF</i>.
+		When SSG is used you should set the attack rate to max (31) in the ADSR envelope
+		used by the affected operator(s), or you might get distorted output.
+		This command is <a href="#operator">operator specific</a>.
+
+		Example:
+
+			<i class="mml">@ADSR0 = {31 10 10 8}
+
+			E @2 OP0 v100 SSG0 ADSR0 c1 SSGOF d1</i>
+
+<a name="hard_sync"></a>
+<b>Hard sync enable</b> (C64)
+	<i class="mml">SYNC</i><i class="mmlparm">num</i>
+		When <i class="mmlparm">num</i> == 1, the oscillator of channel X (where X == <i class="mml">A</i>, <i class="mml">B</i> or <i class="mml">C</i>) is
+		synchronized with the oscillator of another channel according to the following list:
+
+			A: A + C
+			B: B + A
+			C: C + B
+
+		Hard sync is disabled when <i class="mmlparm">num</i> == 0.
+
+
+<b>Implementation specific notes</b>
+	<a name="sgg_info"></a>
+	<i>SEGA Game Gear</i>
+
+		Volume range is 0..15. The lowest playable note is <i class="mml">A</i> in octave 2.
+		Channels <i class="mml">A</i>, <i class="mml">B</i>, <i class="mml">C</i> are tone channels that output square waves.
+
+		Channel <i class="mml">D</i> is used for noise. <i class="mml">@0</i> selects white noise and <i class="mml">@1</i> selects periodic
+		noise.
+
+		Limited panning is supported (negative values means full left, zero means center,
+		positive values means full right).
+
+		<i class="mml">EP</i> and <i class="mml">MP</i> can be used together, but they will interfere with eachother.
+
+		For the noise channel the octave setting is irrelevant. The noise generator has
+		four different clock settings that is determined by the current note MOD 4. Below
+		is a list of what each note corresponds to:
+
+			c, e, g+:	High pitch
+			c+, f, a:	Medium pitch
+			d, f+, a+:	Low pitch
+			d+, g, b:	Pitch determined by channel C.
+
+		By selecting periodic noise generation with pitch determined by channel <i class="mml">C</i> it is
+		possible to use the noise channel as a kind of extra tone channel.
+
+	<a name="sms_info"></a>
+	<i>SEGA Master System</i>
+
+		Volume range is 0..15.
+		The lowest playable note is <i class="mml">A</i> in octave 2 for channels <i class="mml">A..D</i>, and <i class="mml">C</i> in octave 1 for
+		channels <i class="mml">E..M</i>.
+
+		Channels <i class="mml">A</i>, <i class="mml">B</i>, <i class="mml">C</i> are tone channels that output square waves.
+
+		Channel <i class="mml">D</i> is used for noise. <i class="mml">@0</i> selects white noise and <i class="mml">@1</i> selects periodic
+		noise. The noise&#39;s pitch is determined in the same way as for the SEGA Game Gear.
+
+		<s>Channels <i class="mml">E</i>, <i class="mml">F</i>, <i class="mml">G</i>, <i class="mml">H</i>, <i class="mml">I</i>, <i class="mml">J</i>, <i class="mml">K</i>, <i class="mml">L</i>, <i class="mml">M</i> are FM channels that can output a variety and sounds. Note</s>
+		<s>that if you want to play a song using these channels on an actual console you will need</s>
+		<s>a modified SMS / Mark-III with an added YM2413, or a japanese SMS, or a NEO MD Myth cartridge.</s>
+
+		<i class="mml">EP</i> and <i class="mml">MP</i> can be used together, but they will interfere with eachother.
+
+	<a name="gen_info"></a>
+	<i>SEGA Genesis</i>
+
+		Volume range is 0..15 for channels <i class="mml">A..D</i>, and 0..127 for channels <i class="mml">E..J</i>. Note that it&#39;s
+		possible to set the volume separately per <a href="#operator">operator</a> for channels <i class="mml">E..J</i>.
+
+		The lowest playable note is A in octave 2 for channels <i class="mml">A..D</i>, and C in octave 1 for
+		channels <i class="mml">E..J</i>.
+		Channels A, B, C are tone channels that output square waves.
+
+		Channel D is used for noise. <i class="mml">@0</i> selects white noise and <i class="mml">@1</i> selects periodic
+		noise. The noise&#39;s pitch is determined in the same way as for the SEGA Game Gear.
+
+		Channels E, F, G, H, I, J are FM channels that can output a variety and sounds.
+
+		Channel <i class="mml">J</i> can also be used for PCM playback, see the <a href="#xpcm">@XPCM</a> and <a href="#mode">M</a> commands for more
+		info (Note that PCM playback only works when outputting to VGM).
+
+		The playback library doesn&#39;t handle bank switching, so the compiled size of your music data must
+		be <= 32 kB and should start as close as possible to the beginning of a 32 kB page. (Note that
+		this isn&#39;t relevant when outputting to VGM).
+
+		<a href="#callback">Callbacks</a> are currently not supported.
+
+		<i class="mml">EP</i> and <i class="mml">MP</i> can be used together, but they will interfere with eachother.
+		<i class="mml">MP</i> is ignored for channels <i class="mml">E..J</i> since <a href="#modulator">MOD</a> can achieve pretty much the same thing.
+
+	<a name="pce_info"></a>
+	<i>PC-Engine / TurboGrafx</i>
+
+		Volume range is 0..31.
+		The octave range is 1-12 in wavetable mode, and 6-12 in noise mode. In XPCM mode only
+		octave 0 can be used.
+
+		Channels A, B, C, D, E, F are used for wavetable playback. You must execute at least one
+		<i class="mml">WT</i> command to load a <a href="#waveform">waveform</a>.
+
+		Channel D can <a href="#mode">be put in</a> to <a href="#xpcm">XPCM mode</a> to play back samples of arbitrary length.
+
+		Channels E and F <a href="#algorithm">can also output white noise</a> instead of wavetable data.
+
+		Channel B can be used to <a href="#modulator">frequency modulate channel A</a>.
+
+		Each channel's volume and <a href="#pan">balance (panning)</a> can be altered. There's currently no way
+		to set the global balance. It's set to 0xFF (full output) by the playback library.
+
+		Note: There's currently a limit on the size of song (exluding XPCM data) at 8 kB. That
+			  will hopefully be fixed in a later release.
+
+		Note 2: nezplug++ (v0.9.4.8 + 3 + 21.00) does not play the HES files generated by XPMCK
+		        correctly. It usually plays them too fast.
+		        Mednafen plays the files at the right pace, and I've verified that my code works
+		        as expected on a real TurboGrafx.
+
+	<a name="gbc_info"></a>
+	<i>Gameboy / Gameboy Color</i>
+
+		Volume range is 0..15 for channels A, B, D and 0..3 for channel C.
+		The lowest playable note is C in octave 2, except for channels <i class="mml">C</i> and <i class="mml">D</i> which can go down
+		to C in octave 1. Channel <i class="mml">D</i> can go up to octave 11 (octave 5 when <i class="mml">#GB-NOISE 1</i> is used), while
+		the maximum octave for the other channels is 7.
+		Channels <i class="mml">A</i>, <i class="mml">B</i> are tones channels that output square waves with
+		controllable duty cycle (0..3, representing 12.5..75%).
+
+		Channel C is used for Wave playback. You must execute at least one
+		<i class="mml">WT</i> command on channel C to load a <a href="#waveform">waveform</a>, or the channel will not
+		be activated.
+
+		Channel D is used for noise. <i class="mml">@0</i> selects white noise and <i class="mml">@1</i> selects periodic
+		noise. You should avoid using <i class="mml">EP</i> and <i class="mml">MP</i> on the noise channel.
+
+		Limited panning is supported (negative values means full left, zero means center,
+		positive values means full right).
+
+		It is preferred to use <a href="#volume_envelope">@ve</a> rather than @v on channels A, B and D.
+		The reason for that being that the envelope effect specified by the <i class="mml">@ve</i> command is handled
+		by the Gameboy hardware, while an <i class="mml">@v</i> command causes the player to update the volume bits for
+		the selected channel(s) and reset the waveform, which causes distortion.
+		An alternative to this is to use the <a href="#gb_volume">alternative Gameboy volume control</a>, which allows <i class="mml">@v</i>
+		to be used without distortion but breaks compability with many emulators (though it works
+		on a real Gameboy).
+
+	<a name="cps_info"></a>
+	<i>CPS-1 (Capcom Play System)</i>
+
+		Only VGM output is supported for this target. Also, only the YM2151 is supported - no ADPCM.
+
+		Volume range is 0..127 for channels <i class="mml">A..H</i>. Note that it&#39;s possble to set the volume separately
+		per <a href="#operator">operator</a>.
+
+		The lowest playable note is C in octave 1.
+
+		Channels <i class="mml">A..H</i> are FM channels that can output a variety and sounds.
+
+		Channel <i class="mml">H</i> can also output noise, see the <a href="#mode">M</a> command for more info.
+
+		<i class="mml">EP</i> and <i class="mml">MP</i> can be used together, but they will interfere with eachother.
+		<i class="mml">MP</i> is ignored since <a href="#modulator">MOD</a> can achieve pretty much the same thing.
+
+	<a name="c64_info"></a>
+	<i>Commodore 64</i>
+
+		Volume range is 0..15 for channels <i class="mml">A..C</i>. See the <a href="#volume">notes about volume</a> on the C64.
+		The lowest playable note is C in octave 0.
+
+		Channels <i class="mml">A..C</i> are tone channels that can output the waveform of one of four different
+		oscillators, with adjustable ADSR envelopes and filtering.
+
+		<a href="#ring_mod">Ring modulation</a> can be used to combine the waveforms of two channels.
+
+	<a name="clv_info"></a>
+	<i>ColecoVision</i>
+
+		Volume range is 0..15.
+		The lowest playable note is A in octave 2 for channels A..D.
+
+		Channels A, B, C are tone channels that output square waves.
+
+		Channel D is used for noise. <i class="mml">@0</i> selects white noise and <i class="mml">@1</i> selects periodic
+		noise. The noise&#39;s pitch is determined in the same way as for the SEGA Game Gear.
+
+		<i class="mml">EP</i> and <i class="mml">MP</i> can be used together, but they will interfere with eachother.
+
+	<a name="kss_info"></a>
+	<i>KSS</i>
+
+		Volume range is 0..15.
+		The lowest playable note is A in octave 2 for channels <i class="mml">A..D</i>, and C in octave 1 for
+		channels <i class="mml">E..L</i>
+
+		Channels A, B, C, D are for the SN79489 (see the SMS/GG/ColecoVision section for more
+		info).
+
+		Channels E, F, G are for the PSG (AY-3-8910). Each of these channels can output tones and/or
+		noise (see <a href="#algorithm">@</a>, <a href="#noise_speed">n</a>), using either an adjustable volume or one of 16 predefined envelopes (see <a href="#tone_envelope">@te</a>, <a href="#envelope_speed">@es</a>).
+
+		Channels H, I, J, K, L are for the Konami SCC. These channels are used for waveform playback.
+		Channels <i class="mml">H..J</i> have their own 32-byte signed 8-bit waveforms that needs to be loaded with the <a href="#waveform">WT</a> command.
+		Channels K and L share the same waveform, so issuing a <i class="mml">WT</i> command on either of those channels will also affect the other.
+
+		Note that using the SN79489 will effectively disable the PSG and SCC.
+
+	<a name="cpc_info"></a>
+	<i>CPC</i>
+
+		Volume range is 0..15.
+		The lowest playable note is C in octave 1 for channels <i class="mml">A..C</i>
+
+		Channels A, B, C are for the PSG (AY-3-8910). Each of these channels can output tones and/or
+		noise (see <a href="#algorithm">@</a>, <a href="#noise_speed">n</a>), using either an adjustable volume or one of 16 predefined envelopes (see <a href="#tone_envelope">@te</a>, <a href="#envelope_speed">@es</a>).
+
+	<i>General</i>
+
+		Effects are stepped through once per frame.
+
+
+
+<b>TODO</b><ul>
+Things that would be nice to do, time permitting:
+
+<li>Fix bugs.
+<li>Write playback libraries for other platforms.
+<li>Implement more effects.
+<li>Create a player for Windows.
+<li>Optimize the playback libraries.
+</ul>
+
+</body>
+</html>

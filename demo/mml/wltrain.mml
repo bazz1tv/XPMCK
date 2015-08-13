@@ -1,0 +1,74 @@
+;---------------------------------------------------------------
+#TITLE		Train Stage
+#GAME		Wario Land : Super Mario Land 3
+#COMPOSER	Kozue Ishikawa, Ryohji Yoshitomi
+#PROGRAMMER	mic
+;---------------------------------------------------------------
+
+#IFNDEF GEN
+#ERROR "This track is for SEGA Genesis only."
+#ENDIF
+
+@v11 = { 0 9 14:3'2 | 3 5 }
+@v12 = { 13:1'2 }
+@v13 = { 14 13 9 1 0 }
+@v14 = { 14'3 13'5 12:7 }
+@v15 = { 15:2:-2 }
+
+; Define some envelopes
+@ADSR3 = {21 9 15 8 7} 
+@ADSR4 = {12 4 1 8 0}
+@ADSR6 = {31 2 1 18 18}
+@ADSR32 = {15 3 13 16 3} 
+@ADSR7 = {31 17 6 7 14}
+
+@EP0 = {-1 0 0}
+
+@MOD1 = {4 0 3}
+
+
+; Global tempo
+ABCDEFGHIJ t144
+
+
+E k3 o3 @3 FB3 OP0 v104 ADSR6 D-2 MF1 OP3 v108 D-3 MF1 OP0 SSG1
+F k3 o3 @4 FB6 OP0 v102 ADSR6 D0 MF1 OP3 D-3 MF1 OP0 SSG2
+A k3 o3 @v14
+EFA (
+ L o3
+ gr4^32b16>e16< k4 q6 ggab > [cgcg]2 [dada]2 [<b>g<b>g]2
+ c q8 >c+d.d+16e.r<g16a16b16 q6 > cgcg < a+>g<a+>g <a>f<a>f <g+>f<g+>f [<g>e<g>e]2
+<c>g+ q8 g16f16e16d16c16.r8..<c16d16e16 q6 [ffcc]4 [ee<bb>]2
+ [<aa>ee]2 [ddaa]2 [ddg+g+]2 q8 g4^16^32 r8.. > g16f16e16d16c16<b16a16
+ 
+  
+)
+
+C k4 q6 @v15
+I k4 q6 @6 FB3  OP0 ADSR6 D-1  OP1 D-2 MF1  OP2 D-3 MF2  OP3 D-2 MF0  OP4  D-3 MF1  OP0 v101
+CI ( 
+ L
+ o7rf+f+r2^8[r1]3
+ r<<efr16q8f+16q6g>>f+f+r[r1]3
+ r<<<g+q8g16f16e16d16q6c>>>c<br[r1]3
+ [r1]4
+)
+
+G k4 @5 FB2  OP0 ADSR6 D-2  OP1 D-2 MF1  OP2 D-3 MF1  OP3 D-3 MF0  OP4  D-3 MF1  OP0 v103 MOD1
+H k4 @7 FB3  OP0 ADSR6 D-1  OP1 D-2 MF1  OP2 D-3 MF2  OP3 D-2 MF0  OP4  D-3 MF1  OP0 v101 
+B k4 @v11 
+GHB (
+ L o7
+ q6 r ggrr<fedcrr<q8g16e16q6crr<q8b16>c16q6drrq8c+16d16q6arrrbrrq8f16d16<q6brr>q8d16f16
+ ec+dr16q8d+16q6e>>ggr<crr<q8g16e16q6crr<q8b16>c16q6drrq8c+16d16q6g+r.q8g+16a+16g+16q6grr>q8d16e16q6fd<ab
+>c<g+q8g16f16e16d16q6c>b>cr.q8<[<a16>c16 | d16]4 q6dcr16 q8 [<g+16>c16 | d16]4 q6dcr16 q8 [<g16b16> | d16]4 q6d<b
+ r16 > q8 [<a16>c+16 | e16]4 q6e<ar16 >q8 [<a16>d16 | f16]4 q6fdr16 q8 [<g+16>c16f16]4 e16d16c16<b16>g16f16e16d16c16<b16a16 q6 g rrr
+)
+
+
+D ( o7 @0 l16 @v13
+ L
+ cr [cccr]63 cc
+)
+
+
