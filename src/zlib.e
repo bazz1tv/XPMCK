@@ -29,13 +29,15 @@
 --
 
 without warning
-include machine.e
-include dll.e
+include std/machine.e
+include std/dll.e
 atom ZLIBDLL
 if platform() = 2 then
 	ZLIBDLL = open_dll("ZLibE.dll")
 elsif platform() = 3 then
 	ZLIBDLL = open_dll("libz.so")
+else
+	ZLIBDLL = open_dll("libz.dylib") -- OSX
 end if
 
 global constant ZLIB_VERSION = "1.2.1",
