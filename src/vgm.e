@@ -210,7 +210,7 @@ global procedure write_vgm(sequence fname, integer song, integer psg, integer ym
 	vgmData &= int_to_bytes(0)	-- Loop offset
 	vgmData &= int_to_bytes(0)	-- Loop samples
 	vgmData &= int_to_bytes(floor(updateFreq))
-	vgmData &= {9, 0, 8, 0}		-- Noise feedback pattern / shift width
+	vgmData &= {9, 0, 16, 0}	-- Noise feedback pattern / shift width
 	if ym2612 then
 		vgmData &= int_to_bytes(7.6*1000000)
 	else
