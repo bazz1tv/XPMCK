@@ -2,7 +2,7 @@
 
 all: bin/xpmc bin/amsdoshd bin/bin2hes bin/bin2s bin/bin2sap bin/stripfile
 
-bin/xpmc:
+bin/xpmc: src/*
 	euc src/xpmc.exw -o bin/xpmc
 bin/amsdoshd:
 	gcc src/amsdoshd/main.c -o bin/amsdoshd
