@@ -1,0 +1,19 @@
+#!/bin/bash
+# usage: mksms derp.mml
+# will output: derp.sms
+
+if [ "$1" = "" ]; then
+	echo "Usage example: mksms derp.mml"
+	printf "\toutputs: derp.sms\n"
+	exit 1
+fi
+curdir="$PWD"
+fn_noext=${1%.*}
+sms_gg_dir="$XPMCK_DIR/demo/sms_gg"
+xpmc -sms "$1" "${sms_gg_dir}/smsmusic.asm"
+
+pushd "${sms_gg_dir}"
+# you must call your output file smsmusic.asm and this file must be in demo/sms_gg
+wla-z80 -vo "testsms.asm" "testsms.o"
+wlalink -bS "testsms.link" "$curdir/${fn_noext}.sms"
+popd
