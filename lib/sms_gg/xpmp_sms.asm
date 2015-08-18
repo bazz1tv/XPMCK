@@ -777,7 +777,7 @@ xpmp_tone_cmd_90:
 	ld	a,(hl)
 	ld	(de),a
 	-:
-	INC_DATAPOS 2
+	INC_DATAPOS 3
 	ret
 	
 	xpmp_tone_cmd_90_wrport:
