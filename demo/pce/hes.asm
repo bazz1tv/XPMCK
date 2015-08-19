@@ -39,7 +39,7 @@
 .org $0040
 .include "..\..\lib\pce\xpmp_pce.asm"
 
-.bank 0 slot 0
+.bank 0 slot 7
 ; Interrupt vectors
 .org $1FF6
 
@@ -51,7 +51,7 @@
 
 
  
-.bank 1 slot 2
+.bank 0 slot 7
 .org $0000
 
 
@@ -61,6 +61,21 @@ start:
     cld                               
     ldx    #$FF                       
     txs
+;------paging-------
+    lda    #$FF
+    tam    #1      ; page0 - IO
+    lda    #$F8    ; page1 - RAM
+    tam    #2
+    lda    #$01    ; page2 - PRGBANK1 (XPMP)
+    tam    #4
+    ina
+    tam    #$40    ; page6 - PRGBANK2 (PCM)
+;-------------------
+    jmp    preplay
+
+.bank 1 slot 2
+.org $0000
+preplay:
     stz    $2000                	; clear all the RAM
     tii    $2000,$2001,$1FFF
     
