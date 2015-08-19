@@ -8,7 +8,7 @@ if [ "$1" = "" ]; then
 	exit 1
 fi
 curdir="$PWD"
-fn_noext=`basename "${1%.*}"`
+fn_noext="`basename ${1%.*}`"
 pce_dir="$XPMCK_DIR/demo/pce"
 xpmc -pce "$1" "${pce_dir}/pcemusic.asm"
 
