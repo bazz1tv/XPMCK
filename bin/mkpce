@@ -13,7 +13,7 @@ pce_dir="$XPMCK_DIR/demo/pce"
 xpmc -pce "$1" "${pce_dir}/pcemusic.asm"
 
 pushd "${pce_dir}"
-# you must call your output file smsmusic.asm and this file must be in demo/sms_gg
+
 wla-huc6280 -vo hes.asm sap.o &&
 wlalink -rS sap.link "$curdir/${fn_noext}.pce"
 wlalink -bS sap.link "$curdir/${fn_noext}.bin"
