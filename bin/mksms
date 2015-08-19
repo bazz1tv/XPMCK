@@ -8,7 +8,7 @@ if [ "$1" = "" ]; then
 	exit 1
 fi
 curdir="$PWD"
-fn_noext=${1%.*}
+fn_noext="`basename ${1%.*}`"
 sms_gg_dir="$XPMCK_DIR/demo/sms_gg"
 xpmc -sms "$1" "${sms_gg_dir}/smsmusic.asm"
 
