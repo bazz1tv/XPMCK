@@ -5,6 +5,11 @@
 
 @MOD0 = {120 1}
 @MOD1 = {35 2}
+@MOD2 = {35 3}
+@MOD3 = {255 3}
+@MOD4 = {10 3} ; 0 seems to retain last parameter
+@MOD5 = {1 3}
+
 
 @WT0 = { 0 : 31} ; Saw wave
 
@@ -19,9 +24,13 @@ AB t125
 
 A o4 l4 WT0 @v0
 A L
-A MODOF [cdef]2
-A MOD0 [cdef]2
-A MOD1 [cdef]2
+A MODOF [cdef]1
+A MOD0 [cdef]1
+A MOD1 [cdef]1
+A MOD2 [cdef]1
+A MOD3 [cdef]1
+A MOD4 [cdef]1
+A MOD5 [cdef]1
 
 
 B o4 l2 WT1 v0
