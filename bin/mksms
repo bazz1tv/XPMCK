@@ -3,8 +3,8 @@
 # will output: derp.sms
 
 if [ "$1" = "" ]; then
-	echo "Usage example: mksms derp.mml"
-	printf "\toutputs: derp.sms\n"
+	echo "Usage example: `basename $0` derp.mml"
+	printf "\toutputs: derp.sms, derp.sym\n"
 	exit 1
 fi
 curdir="$PWD"

@@ -1,10 +1,10 @@
 #!/bin/bash
-# usage: mksms derp.mml
-# will output: derp.sms
+# usage: mkpce derp.mml
+# will output: derp.hes, derp.sym, derp.pce
 
 if [ "$1" = "" ]; then
-	echo "Usage example: mksms derp.mml"
-	printf "\toutputs: derp.sms\n"
+	echo "Usage example: `basename $0` derp.mml"
+	printf "\toutputs: derp.hes, derp.sym, derp.pce\n"
 	exit 1
 fi
 curdir="$PWD"
@@ -14,11 +14,11 @@ xpmc -pce "$1" "${pce_dir}/pcemusic.asm"
 
 pushd "${pce_dir}"
 # you must call your output file smsmusic.asm and this file must be in demo/sms_gg
-wla-huc6280 -vo hes.asm sap.o
+wla-huc6280 -vo hes.asm sap.o &&
 wlalink -rS sap.link "$curdir/${fn_noext}.pce"
 wlalink -bS sap.link "$curdir/${fn_noext}.bin"
 bin2hes "$curdir/${fn_noext}.bin" "$curdir/${fn_noext}.hes"
 rm sap.o
 popd
 
-#rm "$curdir/${fn_noext}.bin"
+rm "$curdir/${fn_noext}.bin"
