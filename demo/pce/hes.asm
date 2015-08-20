@@ -57,10 +57,8 @@
 
 start:
     sei                               
-    csh  							; switch the CPU to high speed mode                             
-    cld                               
-    ldx    #$FF                       
-    txs
+    csh  							; switch the CPU to high speed mode
+    cld
 ;------paging-------
     lda    #$FF
     tam    #1      ; page0 - IO
@@ -76,6 +74,11 @@ start:
 .bank 1 slot 2
 .org $0000
 preplay:
+    sei
+    csh
+    cld
+    ldx    #$FF
+    txs
     stz    $2000                	; clear all the RAM
     tii    $2000,$2001,$1FFF
     

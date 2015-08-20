@@ -21,4 +21,4 @@ bin2hes "$curdir/${fn_noext}.bin" "$curdir/${fn_noext}.hes"
 rm sap.o
 popd
 
-rm "$curdir/${fn_noext}.bin"
+#rm "$curdir/${fn_noext}.bin"
