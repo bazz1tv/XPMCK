@@ -32,13 +32,6 @@
 .endm
 
 
-
-.org $0000
-.dw 0
-.bank 0 slot 7
-.org $0040
-.include "..\..\lib\pce\xpmp_pce.asm"
-
 .bank 0 slot 7
 ; Interrupt vectors
 .org $1FF6
@@ -53,9 +46,7 @@
  
 .bank 0 slot 7
 .org $0000
-
-
-start:
+start:								; HES will not execute this vector
     sei                               
     csh  							; switch the CPU to high speed mode
     cld
@@ -70,6 +61,8 @@ start:
     tam    #$40    ; page6 - PRGBANK2 (PCM)
 ;-------------------
     jmp    preplay
+.include "..\..\lib\pce\xpmp_pce.asm"
+
 
 .bank 1 slot 2
 .org $0000

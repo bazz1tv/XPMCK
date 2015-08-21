@@ -42,17 +42,12 @@ int main(int argc, char *argv[])
 
   fputs("DATA", hesfile);
 
-  for (i = 0; i < 0x20; i++) {
-	  dummy = fgetc(binfile);
-	  size--;
-  }
-
   fputc(size&0xFF, hesfile);
   fputc((size>>8)&0xFF, hesfile);
   fputc((size>>16)&0xFF, hesfile);
   fputc(0x00, hesfile);
 
-  fputc(0x20, hesfile);
+  fputc(0x00, hesfile);
   fputc(0x00, hesfile);
   fputc(0x00, hesfile);
   fputc(0x00, hesfile);
