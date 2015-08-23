@@ -608,7 +608,11 @@ procedure compile_file(sequence fileName)
 	end for
 	if not length(workDir) then
 		shortFilename = fileName
-		workDir = current_dir() & '\\'
+		if platform() = 2 then
+			workDir = current_dir() & '\\'	-- Windows
+		else
+			workDir = current_dir() & '/'	-- OSX/Linux
+		end if
 	end if
 	
 	oldLineNum 	= lineNum
