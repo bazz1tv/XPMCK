@@ -2,6 +2,9 @@
 ; PC-Engine/TurboGrafx version
 ; /Mic, 2011
 
+.IFNDEF RAM_START
+.DEFINE RAM_START $2000
+.ENDIF
 
 .IFNDEF XPMP_RAM_START
 .DEFINE XPMP_RAM_START $3000
@@ -496,7 +499,16 @@ xpmp_cmd_60:
 	++:
 	jsr		xpmp_step_cs
 	+:
-	rts
+	; EXECUTE EVERY-NOTE CALLBACK HERE. Modeled after SMS callback engine
+	lda cbEvnote.w+1,x	; high byte == 0 means no handler (zero page is I/O)
+	beq +
+	sta <xpmp_tempZp2
+	lda cbEvnote.w,x
+	sta <xpmp_tempZp1
+	jmp (xpmp_tempZp1 + RAM_START)	; no ZP JMP
+	; I know I could use xpmp_tempw (it's not used for anything else ATM)
+	; but I'd rather not clobber its value
++	rts
 
 
 ; Set octave
@@ -733,14 +745,35 @@ xpmp_cmd_E0:
 	rts
 
 	xpmp_cmd_Ex_cboff:
-	stz		cbEvnote.w,x
+	stz		cbEvnote.w,x	; X is pre-loaded channel*2
 	stz		cbEvnote.w+1,x
 	rts
 	
 	xpmp_cmd_Ex_cbonce:
+	iny
+	lda (<xpmp_dataPtr),y
+	asl	; index -> word offset
+	phy
+	tay
+	lda xpmp_callback_tbl,y
+	sta <xpmp_tempZp1
+	lda xpmp_callback_tbl+1,y
+	sta <xpmp_tempZp2
+	ply
+	jmp (xpmp_tempZp1 + RAM_START)
 	rts
 	
 	xpmp_cmd_Ex_cbevnt:
+	iny
+	lda (<xpmp_dataPtr),y
+	asl	; index -> word offset
+	phy
+	tay
+	lda xpmp_callback_tbl,y
+	sta cbEvnote.w,x
+	lda xpmp_callback_tbl+1,y
+	sta cbEvnote.w+1,x
+	ply
 	rts
 	
 	xpmp_cmd_Ex_detune:
