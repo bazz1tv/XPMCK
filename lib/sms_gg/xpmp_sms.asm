@@ -383,6 +383,7 @@ xpmp_init:
 	add	a,b	; a = song*24
 	add	a,c	; a = song*26
 	ld	c,a
+	ld	b,0
 .ELSE
 	add	a,a
 	add	a,a
