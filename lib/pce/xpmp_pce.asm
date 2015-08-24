@@ -249,6 +249,7 @@ Keep in mind that other architectures support more channels (ie. Sega Genesis)
 which means lower song number support if non-16 bit math is used.
 */
 	lda		xpmp_songNum
+	dea
 	sta		xpmp_tempZp1
 	asl		; *2
 	asl		; *4

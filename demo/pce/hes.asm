@@ -83,6 +83,7 @@ preplay:	; HES start vector
     
     lda    $2000                    ; load song# (count from 0)
 choose_song:
+	ina                             ; XPMP API expects songs to start from 1
 	sta		<xpmp_songNum
 	lda		#<xpmp_song_tbl
 	sta		xpmp_songTblLo
