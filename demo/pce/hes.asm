@@ -50,6 +50,10 @@ start:								; HES will not execute this vector
     sei                               
     csh  							; switch the CPU to high speed mode
     cld
+    ldx    #$FF
+    txs
+    stz    $2000                    ; clear all the RAM
+    tii    $2000,$2001,$1FFF
 ;------paging-------
     lda    #$FF
     tam    #1      ; page0 - IO
