@@ -364,13 +364,7 @@ write_ym2413_buffer:
 	ret
 .ENDIF
 
-
-; Initialize the music player
-; HL = pointer to song table, A = song number
-xpmp_init:
-	ld	b,0
-	dec	a
-.IFDEF XPMP_ENABLE_FM
+xpmp_get_13ch_song_table_index:
 	ld	c,a
 	add	a,a
 	ld	c,a	; c = song*2
@@ -382,13 +376,26 @@ xpmp_init:
 	add	a,a	; a = song*16
 	add	a,b	; a = song*24
 	add	a,c	; a = song*26
+	ld  b,0
 	ld	c,a
+	ret
+
+; Initialize the music player
+; HL = pointer to song table, A = song number
+xpmp_init:
 	ld	b,0
+	dec	a
+.IFDEF XPMP_ENABLE_FM
+	call xpmp_get_13ch_song_table_index
 .ELSE
-	add	a,a
-	add	a,a
-	add	a,a
-	ld	c,a
+	; The following lines would have been correct if XPMC had only
+	; embedded channels ABCD into the song table. But it is currently
+	; configured to write ALL 13 channels even if FM is not enabled.
+	;add	a,a
+	;add	a,a
+	;add	a,a
+	;ld	c,a
+	call xpmp_get_13ch_song_table_index
 .ENDIF
 	add	hl,bc
 
