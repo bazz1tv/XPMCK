@@ -60,23 +60,26 @@ start:								; HES will not execute this vector
     ina
     tam    #$40    ; page6 - PRGBANK2 (PCM)
 ;-------------------
-    jmp    preplay
+    cla            ; load song 0
+    jmp    choose_song
 .include "..\..\lib\pce\xpmp_pce.asm"
 
 
 .bank 1 slot 2
 .org $0000
-preplay:
+preplay:	; HES start vector
     sei
     csh
     cld
     ldx    #$FF
     txs
-    stz    $2000                	; clear all the RAM
-    tii    $2000,$2001,$1FFF
+    sta    $2000                    ; store song# (HES player provides it)
+    stz    $2001                    ; clear all the RAM
+    tii    $2001,$2002,$1FFE
     
-	lda		#1
-	sta		xpmp_songNum
+    lda    $2000                    ; load song# (count from 0)
+choose_song:
+	sta		<xpmp_songNum
 	lda		#<xpmp_song_tbl
 	sta		xpmp_songTblLo
 	lda		#>xpmp_song_tbl

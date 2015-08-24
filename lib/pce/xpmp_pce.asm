@@ -240,11 +240,24 @@ XPMP_RAM_END	ds 1
 ; Initialize the music player
 ; $03..$04 = pointer to song table, $05 = song number
 xpmp_init:
-	dec		xpmp_songNum
-	asl		xpmp_songNum
+/* PCE has 6 channels. xpmp_song_table stores word pointers for every channel
+(even unused ones) per song. This means we must do xpmp_songNum * (6*2)
+to get the proper offset in the table.
+
+Ideally, for PCE this needs to use 16-bit math to support > 21 songs
+Keep in mind that other architectures support more channels (ie. Sega Genesis)
+which means lower song number support if non-16 bit math is used.
+*/
+	lda		xpmp_songNum
+	sta		xpmp_tempZp1
+	asl		; *2
+	asl		; *4
+	sta		xpmp_tempZp2
+	asl		; *8
 	clc
-	lda		xpmp_songTblLo
-	adc		xpmp_songNum
+	adc		xpmp_tempZp2	; *12
+	clc
+	adc		xpmp_songTblLo
 	sta		xpmp_songTblLo
 	lda		xpmp_songTblHi	
 	adc		#0
