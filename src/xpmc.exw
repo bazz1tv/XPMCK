@@ -804,7 +804,9 @@ procedure compile_file(sequence fileName)
 
 				elsif equal(s, "NTSC") then
 					updateFreq = 60.0
-
+				elsif equal(s, "DEFINE") then
+					s = get_string_until({13, 10})
+					define(s,1)
 				elsif equal(s, "IFDEF") then
 					s = get_string_until("&| "&{13, 10})
 					l = is_defined(s)
@@ -3953,6 +3955,7 @@ procedure compile(sequence fileNames)
 	adsrLen = 4
 	adsrMax = 15
 	defines = {{}, {}}
+	define("XPMC_HAS_DEFINE",1) -- this is a special version of XPMC with extended features
 	updateFreq 	= 60.0
 	
 	tune = 0
