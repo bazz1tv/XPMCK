@@ -52,8 +52,6 @@ start:								; HES will not execute this vector
     cld
     ldx    #$FF
     txs
-    stz    $2000                    ; clear all the RAM
-    tii    $2000,$2001,$1FFF
 ;------paging-------
     lda    #$FF
     tam    #1      ; page0 - IO
@@ -64,6 +62,8 @@ start:								; HES will not execute this vector
     ina
     tam    #$40    ; page6 - PRGBANK2 (PCM)
 ;-------------------
+    stz    $2000   ; clear all the RAM
+    tii    $2000,$2001,$1FFF
     cla            ; load song 0
     jmp    choose_song
 .include "..\..\lib\pce\xpmp_pce.asm"
