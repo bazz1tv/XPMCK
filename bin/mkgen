@@ -1,0 +1,34 @@
+#!/bin/bash
+# usage: mkgen derp.mml
+# will output: derp.bin
+
+if [ "$1" = "" ]; then
+	echo "Usage example: `basename $0` derp.mml"
+	printf "\toutputs: derp.bin, derp.sym\n"
+	exit 1
+fi
+curdir="$PWD"
+fn_noext="`basename ${1%.*}`"
+gen_demo_dir="$XPMCK_DIR/demo/gen"
+xpmc -gen "$1" "${gen_demo_dir}/genmusic.s"
+
+pushd "${gen_demo_dir}"
+m68k-elf-as -m68000 --register-prefix-optional --bitwise-or -o sega_gcc.o sega_gcc.s
+m68k-elf-as -m68000 --register-prefix-optional --bitwise-or -o charset.o charset.s
+m68k-elf-as -m68000 --register-prefix-optional --bitwise-or -o testgen.o testgen.s
+m68k-elf-as -m68000 --register-prefix-optional --bitwise-or -o music.o genmusic.s
+m68k-elf-as -m68000 --register-prefix-optional --bitwise-or -o z80driver_bin.o ../../lib/gen/z80driver.bin.s
+m68k-elf-as -m68000 --register-prefix-optional --bitwise-or -o xpmp_gen.o ../../lib/gen/xpmp_gen.s
+m68k-elf-ld -Tmd.ld sega_gcc.o testgen.o xpmp_gen.o z80driver_bin.o charset.o music.o
+m68k-elf-objcopy -I elf32-m68k -O binary a.out genmusic.bin
+#rm genmusic.s
+rm sega_gcc.o
+rm charset.o
+rm testgen.o
+rm music.o
+rm z80driver_bin.o
+rm xpmp_gen.o
+rm a.out
+popd
+
+mv "${gen_demo_dir}/genmusic.bin" ./${fn_noext}.bin
