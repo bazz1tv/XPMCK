@@ -1,0 +1,22 @@
+
+#!/bin/bash
+# usage: mkkss derp.mml
+# will output: derp.kss
+
+if [ "$1" = "" ]; then
+	echo "Usage example: `basename $0` derp.mml"
+	printf "\toutputs: derp.kss, derp.sym\n"
+	exit 1
+fi
+curdir="$PWD"
+fn_noext="`basename ${1%.*}`"
+kss_dir="$XPMCK_DIR/demo/kss"
+xpmc -kss "$1" "${kss_dir}/kssmusic.asm"
+
+pushd "${kss_dir}"
+# you must call your output file smsmusic.asm and this file must be in demo/sms_gg
+wla-z80 -vo "testkss.asm" "testkss.o"
+wlalink -bS "testkss.link" kss.bin
+wla-z80 -vo -DXPMP_MAKE_KSS kssmusic.asm testkss.o
+wlalink -bS testkss.link "$curdir/${fn_noext}.kss"
+popd

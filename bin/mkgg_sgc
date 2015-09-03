@@ -1,0 +1,21 @@
+#!/bin/bash
+# usage: mkgg_sgc derp.mml
+# will output: derp.gg
+
+if [ "$1" = "" ]; then
+	echo "Usage example: `basename $0` derp.mml"
+	printf "\toutputs: derp.sgc, derp.sym\n"
+	exit 1
+fi
+curdir="$PWD"
+fn_noext="`basename ${1%.*}`"
+sms_gg_dir="$XPMCK_DIR/demo/sms_gg"
+xpmc -sgg "$1" "${sms_gg_dir}/sgcmusic.asm"
+
+pushd "${sms_gg_dir}"
+# you must call your output file smsmusic.asm and this file must be in demo/sms_gg
+wla-z80 -vo "sgc.asm" "sgc.o"
+wlalink -bS "sgc.link" sgc.bin 
+wla-z80 -o -DXPMP_MAKE_SGC sgcmusic.asm sgc.o
+wlalink -bS sgc.link "$curdir/${fn_noext}.sgc"
+popd

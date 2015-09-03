@@ -1,0 +1,19 @@
+#!/bin/bash
+# usage: mkgg derp.mml
+# will output: derp.gg
+
+if [ "$1" = "" ]; then
+	echo "Usage example: `basename $0` derp.mml"
+	printf "\toutputs: derp.gg, derp.sym\n"
+	exit 1
+fi
+curdir="$PWD"
+fn_noext="`basename ${1%.*}`"
+sms_gg_dir="$XPMCK_DIR/demo/sms_gg"
+xpmc -sgg "$1" "${sms_gg_dir}/ggmusic.asm"
+
+pushd "${sms_gg_dir}"
+# you must call your output file smsmusic.asm and this file must be in demo/sms_gg
+wla-z80 -vo "testgg.asm" "testgg.o"
+wlalink -bS "testgg.link" "$curdir/${fn_noext}.gg"
+popd
