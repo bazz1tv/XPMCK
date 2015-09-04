@@ -120,6 +120,23 @@ Contact: micol972@gmail.com
 	&, ^, <, >, <a href="#repeat_loop">[]</a>, {}, <a href="#detune">D</a>, <a href="#transpose">K</a>, <a href="#length">l</a>, o, <a href="#cutoff">q</a>, t, <a href="#volume">v</a>, v-, v+, <a href="#algorithm">@</a>, @@, @EN, @EP, @MP, <a href="#cutoff">@q</a>, <a href="#volume">@v</a>
 </i>
 
+	<b><i class="mml">@@</i></b>
+		This is the most undocumented command in XPMCK that I know of [bazz]. It is documented in
+		PPMCK as a duty-cycle setting for making pulse wave channels more interesting. Not only is it not stated which
+		systems/channels support this in XPMCK -- but it does additional functionality. For instance, in Sega SMS/GG --
+		Channel D has the ability to select between pseudo-random noise and periodic square wave. The @n = {} macro
+		actually defines a macro that frame-by-frame allows you to select between the two modes. It could be potentially
+		that @@ and @n={} macros select the channel modes that support their own @n settings.
+		ie. 
+		<i class="mml">
+		; SGG toggle D-mode
+		@0 = {0'10 1}
+
+		D t60 l4
+		D v10 @@0 d d d d
+		</i>
+		<b>Warning</b>: this feature is only implemented in VGM thus far.
+
 <b>New commands added in XPMCK</b>
 <i class="mml">
 	<a href="#adsr">@ADSR</a>, <a href="#pan">@CS</a>, <a href="#envelope_speed">@es</a>, <a href="#feedback_macro">@FBM</a>, <a href="#filter">@FT</a>, <a href="#modulator">@MOD</a>, <a href="#waveform">@WT</a>, <a href="#waveform_macro">@WTM</a>, <a href="#xpcm">@XPCM</a>, <a href="#pulse_width_macro">@pw</a>, <a href="#tone_envelope">@te</a>, <a href="#volume_envelope">@ve</a>, <a href="#macro">$</a>, <a href="#callback">!</a>, <a href="#repeats">&#39;</a>, <a href="#pattern">\</a>, <a href="#multiline">(</a>, <a href="#amplitude_mod">AM</a>, <a href="#feedback">FB</a>, <a href="#alt_length">k</a>, <a href="#mode">M</a>, <a href="#detune_mult">MF</a>, <a href="#noise_speed">n</a>, <a href="#operator">OP</a>, <a href="#pulse_width">pw</a>, <a href="#ring_mod">RING</a>, <a href="#rate_scale">RS</a>, <a href="#alt_rest">s</a>, <a href="#SSG_EG">SSG</a>, <a href="#hard_sync">SYNC</a>, <a href="#direct_write">w</a>
