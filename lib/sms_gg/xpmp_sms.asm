@@ -442,6 +442,8 @@ xpmp_init:
 	ld	a,0
 	ld	(xpmp_ym2413Oper),a
 	ld	(xpmp_ym2413Rhythm),a
+	ld	a,3
+	out	($f2),a	; enable PSG+FM
 	.ENDIF
 	
 	ret
