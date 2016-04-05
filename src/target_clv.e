@@ -89,18 +89,18 @@ global procedure output_clv(sequence args)
 		".db 1\t\t; Version" & CRLF &
 		palNtscString & CRLF & 
 		".db 0, 0" & CRLF &
-		".dw $0400\t; Load address" & CRLF &
-		".dw $0400\t; Init address" & CRLF &
-		".dw $0408\t; Play address" & CRLF &
-		".dw $dff0\t; Stack pointer" & CRLF &
+		".dw $8000\t; Load address" & CRLF &
+		".dw $8000\t; Init address" & CRLF &
+		".dw $8008\t; Play address" & CRLF &
+		".dw $7180\t; Stack pointer" & CRLF & -- actually points to SP-1
 		".dw 0\t\t; Reserved" & CRLF &
-		".dw $040C\t; RST 08" & CRLF &
-		".dw $040C\t; RST 10" & CRLF &
-		".dw $040C\t; RST 18" & CRLF &
-		".dw $040C\t; RST 20" & CRLF &
-		".dw $040C\t; RST 28" & CRLF &
-		".dw $040C\t; RST 30" & CRLF &
-		".dw $040C\t; RST 38" & CRLF &
+		".dw $800C\t; RST 08" & CRLF &
+		".dw $800C\t; RST 10" & CRLF &
+		".dw $800C\t; RST 18" & CRLF &
+		".dw $800C\t; RST 20" & CRLF &
+		".dw $800C\t; RST 28" & CRLF &
+		".dw $800C\t; RST 30" & CRLF &
+		".dw $800C\t; RST 38" & CRLF &
 		".db 0, 0, 1, 2\t; Mapper setting (none)" & CRLF &
 		".db 0\t\t; Start song" & CRLF &
 		sprintf(".db %d\t\t; Number of songs", numSongs) & CRLF &
