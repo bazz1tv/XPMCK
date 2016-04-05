@@ -1,2 +1,10 @@
 .DS_Store
 *.o
+*.sym
+amsdoshd
+bin2hes
+bin2s
+bin2sap
+stripfile
+wlapce
+xpmc
