@@ -1,0 +1,182 @@
+#TITLE		River Country
+#COMPOSER	Chris Rodriguez
+
+;///////////////////////////////////////////////////////////////
+;After creation of .vgm file, hexedit value at address 0x2A to become 0x10. Value 0x08 is incorrect. This is an error in current version of xpmck
+;Also hexedit value at address 0x48 to become 0x00. This enables mode 0 for OPLL and allows FM channels KL&M
+;///////////////////////////////////////////////////////////////
+
+
+
+;///Volume Envelopes///
+@v0 =	{2'6 1}				;p PSG
+@v1 =	{9:0:-0.5}			;periodic pluck
+@v2 =	{4'4 5'4 6}			;noise crescendo
+@v3 =	{6'4 5'4 4}			;noise decrescendo
+@v4 =	{8:0:-0.25}			;FM pluck
+
+
+;///Note Envelopes///
+@EN0 =	{ 12-12 00}
+@EN1 =	{ 00|00 03 00 04 00 01 00-08}		;a>cef
+@EN2 =	{ 00|00 01 00 02 00 05 00-08}		;b>cdg
+@EN3 =	{ 00|00 02 00 02 00 03 00 02-09}	;gab>de
+@EN4 =	{ 00|00 02 00 02 00 05 00 02-11}	;fga>de
+@EN5 =	{ 00|00 03 00 02 00 01 00 02-08}	;b>defg
+@EN6 =	{ 00|00 05 00 04 00 05 00 02-16}	;g>ceab
+@EN7 =	{ 00|00 03 00 03 00 02 00-08}		;b>dfg
+@EN8 =	{ 00|00 02 00 03 00 02 00-08}		;ab>de
+@EN9 =	{ 00|00 06 00 01 00 05 00-12}		;fb>cf
+@EN10 =	{ 00|00 02 00 01 00 02 00-05}		;ab>cd
+
+
+
+;///Pitch Envelopes///
+@EP0 =	{| 0 0-1}			;noise down
+@EP1 =	{| 0 0 1}			;noise up
+
+
+
+;///Global Setup///
+ABCDEFGHIJKLM t120
+
+
+
+
+;///PSG 1 Section 1///
+A L @v0 l16 o6
+A	[ef]14   [cg]14   [ef]14    [cg]14
+A	[de]14   [ce]14   [fg]14    [ab]14
+A	[gd]14   [ed]14   [f<b>]14  [dc]14
+
+
+;//PSG 2 Section 1//
+B L @v0 l16 o5
+B	[a>c<]14 [b>d<]14 [a>c<]14  [b>d<]14
+B	[abgb]7  [gafa]7 >[de<b>e]7 [ce<g>e]7
+B	[f<b>]14<[ba]14  >[c<f>]14  [ba]14
+
+
+;//FM 9 Section 1//
+M L @4 @v4 l4 o6 r8			;patch 4 is not actually used. Patch is a sine.
+M EN1 [a]7 EN2 [b]7 EN1 [a]7 EN2 [b]7
+M EN3 [g]7 EN4 [f]7 EN5 [b]7 EN6 [g]7
+M EN7 [b]7 EN8 [a]7 EN9 [f]7 EN10 [a]6 a8
+
+
+;//PSG 1+2 & FM 9 Section 2//
+A v5 l32 o3
+B v3 l32 o3 r8
+M v8 l32 o3 ENOF
+ABM	efga>defga>defga>defga>d<<<	;ends on o4
+ABM	         a>defga>defga>defga<<<	;ends on o4
+ABM	       fga>defga>defg<<		;"	 o4
+ABM	           defga>def<<		;"	 o3
+ABM	degab>degab>degab>degab<<<	;"	 o4
+ABM	         ab>degab>degab>dega<<	;"	 o4
+ABM	       egab>degab>deg<<		;"	 o4
+ABM	                b>degab>d>e	;"	 o7
+
+ABM	e<a>d<gafgefde<a>d<gafgefde<a>d<gafgefde<a>d<gaf>>>	; o6
+ABM	           fde<a>d<gafgefde<a>d<gafge>>>		; o7
+ABM	d<abgaegde<b>d<abgaegde<b>d<abgaegde<b>d<abgae>>>	; o6
+ABM	      egde<b>d<abgaegde<b>d<abga<			; o3
+
+
+;//PSG 1+2 Section 3//
+ABM	[
+ABM	  egb>cegb>cegb>cegb>c<<<<	;o3
+ABM	 cegb>cegb>cegb>cegb<<<		;o3
+ABM	|
+ABM	    b>cegb>cegb>ceg<<<		;o3
+ABM	   gb>cegb>cegb>ce<<<		;o3
+ABM	]2
+A v4
+B v2
+M v7
+ABM	   b>cegb>cegb>ceg<<<		;o3 
+A v3
+B v1
+M v6
+MA	  gb>cegb>cegb>ce
+B	  gb>cegb>ce
+
+
+
+;///PSG 3 Section 1///
+C L v0 EN0 l8 o6				;sets periodic noise freq
+C	[cegbgecbgecegb]8
+C	[<b>dgagd<b>agd<b>dga]4
+
+
+;//PSG 3 Section 2+3//
+C ENOF o6
+C	[EP0 a2..< EP1 a2..>]6		;white noise freq
+
+
+
+;///PSG 4 Section 1///
+D L @1 @v1 l8				;periodic noise. b = use PSG 3 freq
+D	[bbbbbbb]24
+
+
+;//PSG 4 Section 2+3//
+D @0
+D	[@v2 b2.. @v3 b2..]6
+
+
+
+;///FM 1+2 Section 1+2+3///
+E @2 v14 l4 o3 w240,14 w240,0
+F @2 v11 l4 o3 r8.			;echo
+EF 	L
+EF	[c g g c g c g ]8 <
+EF	[b>g g<b>g<b>g<]4 >
+EF	[e a a e a e a ]2
+EF	 e>c c<e>c<e>c<
+EF	 d>c c<d>c<d>c<
+EF	[e b b e b e b ]2
+
+
+;///FM 3+4 Section 1+2+3///
+G @2 v14 l4 o3 r8			;offset 8th note
+H @2 v11 l4 o3 r4^16			;"		+echo
+GH	L
+GH	 e r e b e e b
+GH	[e b e b e e b ]7
+GH	[d a d a d d a ]4
+GH	[g>d<g>d<g g>d<]2
+GH	 f>d<f>d<f f>d<
+GH	 a>e<a>e<a a>e<
+GH	[g>c<g>c<g g>c<]2
+
+
+;///FM 5+6+7+8 Section 1///
+I @2  v14 o4				;guitar
+J @2  v10 o4 r8.			;guitar echo
+K @12 v12 o5				;vibraphone
+L @12 v9  o5 r8.			;vibraphone echo
+IJKL	L
+IJKL	l4
+IJKL	c4.<  b2^8>   d  e2
+IJKL	g4.   e2^8    d  c4. d8
+IJKL	c4.   e2^8    g  a2>
+IJKL	c4.<  a2^8    g  e4. g8
+IJKL	c4.   g2^8    a  b2
+IJKL	b4.>  c2^8    c  d2
+IJKL	e4.<  b2^8>   d< a2
+IJKL	g4.   a2^8    e  c4. e8
+
+
+;///FM 5+6+7+8 Section 2///
+IJKL	d4.   g2^8    a4  b4. a8
+IJKL	b4>   c4. g4. f4. e   d 
+IJKL	c8    e4  d4. c8< b   g4. f8
+IJKL	d4.   g2  e8  f   g   b4.
+
+
+;//FM 5+6+7+8 Section 3///
+IJKL	a2..> d2..  e2.. f2.
+IJKL	g2^8  e8>   c<   b2> c<
+IJKL	g2^8  a8    d2   e2^8
+IJKL	e2..  e2..< e2.. e2.
