@@ -1,5 +1,16 @@
 todo.txt
 --------
+
+006 SMS bug:  channels KLM do not respond to volume updates in rhythm mode (M1)
+B00daW> i also believe that many ym2413.c emulators do not understand the behavior
+[12:56]  <B00daW> as i've read the comments
+[12:56]  <B00daW> so we'll need to test
+[12:56]  <B00daW> if necessary i have a sgen everdrive and an FM cart for my genesis
+[12:57]  <B00daW> which takes SMS files
+[12:57]  <B00daW> but it's likely FPGA
+005 Add/create windows batch scripts
+004 Windows "environment" installation instructions
+003 "build-all" script for Windows users
 002 Make a test framework -- eg automatic build scripts of certain demos that prove certain things work!
 001 Beautify file structures / names (this is in tandem with 001)
   a) need to create individual build scripts for win/*nix such as : 

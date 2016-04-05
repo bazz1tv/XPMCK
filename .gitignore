@@ -1,10 +1,10 @@
 .DS_Store
 *.o
 *.sym
-amsdoshd
-bin2hes
-bin2s
-bin2sap
-stripfile
-wlapce
-xpmc
+bin/amsdoshd
+bin/bin2hes
+bin/bin2s
+bin/bin2sap
+bin/stripfile
+bin/wlapce
+bin/xpmc
