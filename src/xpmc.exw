@@ -2076,7 +2076,7 @@ procedure compile_file(sequence fileName)
 					t = get_string_until(")\t " & {13,10})
 					o = value(t)
 					if o[1] = GET_SUCCESS then
-						if o[1] = 0 then
+						if o[2] = 0 then
 							-- Never (Off)
 							numChannels = 0
 							for i = 1 to length(supportedChannels) do
@@ -2088,7 +2088,7 @@ procedure compile_file(sequence fileName)
 							if numChannels = 0 then
 								ERROR("Trying to set a callback with no channels active", lineNum)
 							end if
-						elsif o[1] = 1 then
+						elsif o[2] = 1 then
 							-- Once
 							numChannels = 0
 							for i = 1 to length(supportedChannels) do
