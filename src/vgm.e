@@ -325,9 +325,9 @@ global procedure write_vgm(sequence fname, integer song, integer psg, integer ym
 	                 }, nChannels)
 	
 	if ym2413 then
-		vgmData &= {VGM_CMD_W_YM2413, #0F, #08}
-		vgmData &= {VGM_CMD_W_YM2413, #02, #00}
-		vgmData &= {VGM_CMD_W_YM2413, #0E, #20}
+		vgmData &= {VGM_CMD_W_YM2413, #0F, #08}	-- sound output enabled
+		vgmData &= {VGM_CMD_W_YM2413, #02, #00}	-- total level / key scale level
+		vgmData &= {VGM_CMD_W_YM2413, #0E, #00}	-- rhythm mode off
 		rhythm = 0
 	end if	
 	
